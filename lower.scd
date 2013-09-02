@@ -7,12 +7,12 @@
 };
 
 SynthDef(\lower, {
-
 	var pulse, pulse2, phase, noise, noise2, jumps, phases,
 	pulseAmt, freqFade, density, sig, freqs, freqMult, fx, clip;
 
 	density = \density.kr(0);
 	fx = \fx.kr(0);
+	clip = \clip.kr(1);
 
 	// density = EnvGen.kr(
 	// 	Env(	[0.0, 0.1, 0.5, 0.3, 0.9, 0.4, 1.1, 1, 1.3, 0.1, 0.4, 0],
@@ -32,7 +32,7 @@ SynthDef(\lower, {
 			pos: LFNoise2.kr(0.06).range(-1,1),
 			width: LFNoise2.kr(0.07).range(2,3)
 		)
-	});
+	}).sum;
 
 	jumps = jumps * EnvGen.kr(Env([0, 0, 1, 1], [4, 4, 20]), timeScale:5);
 	phases = jumps.collect({
@@ -59,36 +59,58 @@ SynthDef(\lower, {
 	noise = phases.collect({
 		| phase, i |
 		var sig, degree, freq, freq1, freq2, saw, hpEnv, scale, bump;
-		hpEnv = max(0, SinOsc.kr(0.007, phase).abs - density.exprange(0.9,0.62) ).lag(0.2);
+		hpEnv = max(0, SinOsc.kr(0.007, phase).abs - density.exprange(0.9, 0.42)).lag(0.2);
 
 		if(i < 35, {
 			// freq = Scale.dorian.degreeToFreq(7.rand, 30.midicps, 2.rand) *
-			freq = freqs[i] * (density.range(1.0,1.01) + [0.03.rand, 0.02.rand, 0.04.rand]);
-			saw = LFSaw.ar(freq).sum * density.range(0.2,1.0);
+			freq = freqs[i] * (density.range(1.0, 1.04) + [0.03.rand, 0.02.rand, 0.04.rand]);
+			saw = LFSaw.ar(freq).sum * density.range(0.2, 1.0);
 			},{
 				// freq = Scale.dorian.degreeToFreq([1, 4, 5][i % 3], 30.midicps, 2) *
 
-				freq = freqs[i] * (density.range(1,1) + [0.015.rand, 0.01.rand, 0.021.rand]);
-				saw = LFPulse.ar(freq, 0, density.range(0,0.9)).sum * max(density-0.5,0) * 2;
+				freq = freqs[i] * (density.range(1, 1) + [0.015.rand, 0.01.rand, 0.021.rand]);
+				saw = LFPulse.ar(freq, 0, density.range(0, 0.99)).sum * max(density - 0.5, 0) * 2;
 		});
+		sig = saw;
+		sig = (BrownNoise.ar(1) + sig) * hpEnv;
+		sig = LPF.ar(sig, max(density.exprange(10, 14000) * hpEnv, 10));
+		sig = XFade2.ar(sig, HPF.ar(sig, 500 + (clip * 14000).min(15000)), clip.range(-1, 1));
 
-		sig = (BrownNoise.ar(1) + saw) * hpEnv;
-		sig = LPF.ar( sig, max( density.exprange(10,12000)*hpEnv, 10) );
-		sig = sig*LPF.ar(
+		sig = sig * LPF.ar(
 			LFPulse.ar(
 				[20,30,60].choose,
 				0,
-				LFNoise2.kr(0.1).exprange(density.range(0.9, 0.5),1)
-			).range(0.6,1)
-			, density.range(40,700)
+				LFNoise2.kr(0.1).exprange(density.range(0.9, 0.3) * clip.range(1, 0.0001), clip.range(1, 0.001))
+			).range(0.6 - clip.exprange(0.01, 0.6), 1),
+			density.range(40, 700) - clip.range(0, 600)
 		);
-		//sig = sig + (TwoTube.ar(sig, 0.5, loss: 0.3, d1length: 800, d2length: 1640) * MouseX.kr(0, 1));
 	});
-	sig = Splay.ar( noise, density.range(0.1,1) );
+
+	sig = Splay.ar(noise, density.range(0.1, 1));
 	sig = LeakDC.ar(sig);
-	SendTrig.ar( sig-1, 0 );
-	SendTrig.ar( sig.neg-1, 0 );
-	sig + GVerb.ar( sig, 3, density.exprange(1,20) ) ;
-	sig;
-}.play;
-)
+
+//	sig = sig + GVerb.ar( sig, 3, density.exprange(1,20) ) ;
+
+	Out.ar(\out.ir(0), sig);
+}).add;
+
+n = Synth(\lower, [
+	\out: 0,
+	\density: 0.4
+]);
+
+n.set(\density, 0.99);
+n.set(\fx, 0.0);
+n.set(\clip, 0.9);
+
+	// {
+	// 	var sig, clip;
+	// 	sig = SinOsc.ar(200);
+	// 	clip = MouseX.kr(0, 2);
+	// 	sig = (
+	// 		((sig > 0) * max(sig - clip, 0))
+	// 		+ ((sig < 0) * min(sig + clip, 0))
+	// 	);
+	//
+	// }.play;
+	//
