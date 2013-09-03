@@ -1,7 +1,5 @@
 
-
-Server.default = s = Server.internal;
-s.boot.doWhenBooted({
+s.doWhenBooted({
 	var mirror;
 	mirror = {
 		| sig, min=(-1), max=1 |
@@ -18,7 +16,7 @@ s.boot.doWhenBooted({
 		density = EnvGen.kr(
 			Env(	[0, 0.1, 0.1, 0.5, 0.8, 0.4, 0.9, 1, 1, 0.1, 0.4, 0],
 				[1, 3,    7,     7,    4,    10,  12,   6, 10,15,  15]),
-			timeScale:5
+			timeScale:2
 		);
 
 		phase = LFNoise2.kr(0.1).range(0.06, 0.09);
@@ -71,30 +69,17 @@ s.boot.doWhenBooted({
 			);
 		});
 		sig = Splay.ar( noise, density.range(0.1,1) );
-		sig + GVerb.ar( sig, 3, density.exprange(1,10) ) ;
+		//sig + GVerb.ar( sig, 3, density.exprange(1,10) ) ;
 	}.play;
 
-	c = 0.0;
-	r = Routine({
-		loop({
-			c = s.getSharedControl(0);
- 			w.view.refresh();
-			(1/30.0).wait;
-		})
-	});
-	r.play(AppClock);
-	w = SCWindow("...");
-	w.drawHook_({
-		Pen.fillColor = Color.hsv(
-			[0.2,0.6].asSpec.map(c),
-			[0.05,0.5].asSpec.map(c),
-			[0.05,1,\exp].asSpec.map(c) );
-		Pen.fillRect(w.bounds.moveTo(0,0));
-	});
-	w.onClose_({ r.stop });
-	CmdPeriod.doOnce({ w.close() });
-	w.fullScreen.front;
 });
 
 
-Bus(\control,10,1,s).debugScope
+{
+	var env, sig;
+	env = EnvGen.kr(Env.perc(0.01, 22, curve: -8), doneAction:2);
+	sig = RLPF.ar(LFSaw.ar(env.range(10, 24) + Rand(0, [2.0, 3.0])), 40,  0.01) * env * 0.1;
+	sig = sig.fold2(0.6);
+	sig = RLPF.ar(sig, 60);
+	sig = HPF.ar(sig, 17);
+}.play;
