@@ -41,8 +41,13 @@ State : Singleton {
 
 	onError {
 		|e|
-		"%: Error running action %.".format(this.name()).error;
-		e.postln;
+		"%: Error running action %.".format(e, this.name()).error;
+		e.reportError;
+	}
+
+	*add {
+		|...args|
+		args.postln;
 	}
 
 	at {
