@@ -302,7 +302,3 @@ State(\wash).stopActions.add({
 
 m.switch(nil);
 m.switch(State(\wash));
-
-
-
-State(\wash)[\highEvent][\play].def.sourceCode
