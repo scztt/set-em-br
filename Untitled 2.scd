@@ -18,7 +18,7 @@ SynthDef( \peng, {
 	arg amp = 0.3, gate = 1, bassFreq = 15, bellFreq = 600, input = 10,
 	noiseLPF = 50, decayAmt = 3, lpf = 40, dur = 8, noiseAmt = 0.9, delayAmt = 0.1,
 	whiteAmt = 0.1;
-	var in, impulse, decay, noise, freq, freqs, amps, decays, sig, delayTimes, delayAmts, delaySpike, env;
+	var in, impulse, decay, noise, freq, freqs, amps, decays, verbSig, sig, delayTimes, delayAmts, delaySpike, env;
 
 	env = EnvGen.kr(Env([0, 1, 1, 0], [0.01, 0.1, 8], releaseNode:2), gate:gate, doneAction:2);
 	freq = bellFreq;
@@ -66,8 +66,10 @@ SynthDef( \peng, {
 	in = sig + HardCompress.ar((sig * LPF.ar(PinkNoise.ar(noiseAmt * 0.5), lpf)) + (in * LPF.ar( PinkNoise.ar(noiseAmt * 0.5), lpf)));
 	in = in + LPF.ar(in * in, 50, 1);
 
-	sig = FreeVerb.ar(sig * 0.1, 0.8, 0.4, mul: 0.3);
-	sig = sig + HardCompress.ar(sig + (in * LPF.ar( PinkNoise.ar(0.25), lpf)));
+	verbSig = FreeVerb.ar(sig * 0.1, 0.8, 0.4);
+	sig = (1 * sig)
+	+ (0.3 * verbSig)
+	+ (0.9 * HardCompress.ar((verbSig * 0.3) + (in * LPF.ar( PinkNoise.ar(0.25), lpf))));
 	sig = sig * 0.2;
 
 	delaySpike = LagUD.ar(Trig1.ar(LFNoise2.ar(6).range(0, 1) - delayAmt, 0.1), 0.01, 1.7);
@@ -77,11 +79,10 @@ SynthDef( \peng, {
 		Mix(CombC.ar(sig[0] * delaySpike, 0.1, delayTimes, delayAmts)),
 		Mix(CombC.ar(sig[1] * delaySpike, 0.1, delayTimes, delayAmts)),
 	]);
-	Out.ar(0, sig);
 
 	sig = sig * env;
 	sig = LeakDC.ar(sig * amp);
-	//Out.ar(0, sig);
+	Out.ar(0, sig);
 }).add;
 
 SynthDef(\driver, {
