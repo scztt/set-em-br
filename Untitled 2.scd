@@ -63,12 +63,16 @@ SynthDef( \peng, {
 	//
 	// in = (in * FreqShift.ar( in, 300, 0.5 )) * 30;
 	// in = HardCompress.ar( ((sig * 0.01) + (FreqShift.ar( in, -400 ))) );
-	in = sig + HardCompress.ar((sig * LPF.ar(PinkNoise.ar(noiseAmt * 0.5), lpf)) + (in * LPF.ar( PinkNoise.ar(noiseAmt * 0.5), lpf)));
+	in = in
+	+ sig
+	+ HardCompress.ar((sig * LPF.ar(PinkNoise.ar(noiseAmt * 0.5), lpf))
+		+ (in * LPF.ar( PinkNoise.ar(noiseAmt * 0.5), lpf)));
+
 	in = in + LPF.ar(in * in, 50, 1);
 
-	verbSig = FreeVerb.ar(sig * 0.1, 0.8, 0.4);
+	verbSig = FreeVerb.ar(sig * 0.5, 0.8, 0.4);
 	sig = (1 * sig)
-	+ (0.3 * verbSig)
+	+ (0.9 * verbSig)
 	+ (0.9 * HardCompress.ar((verbSig * 0.3) + (in * LPF.ar( PinkNoise.ar(0.25), lpf))));
 	sig = sig * 0.2;
 
@@ -91,18 +95,18 @@ SynthDef(\driver, {
 
 	noiseAmt = noiseAmt * LFNoise2.kr(0.6).range(0.95, 1.05);
 
-	imp = Impulse.ar(rate, LFNoise2.kr(8).pow(8) * 0.2) + (double * Impulse.ar(rate));
+	imp = Impulse.ar(rate, LFNoise2.kr(8).pow(8) * 0.3) + (double * Impulse.ar(rate));
 	imp = imp;
 
 	imp = Decay.ar(imp, LFNoise2.kr(1).range(decay * 0.2, decay));
 	imp = RLPF.ar(imp, freq, 1000 / freq);
 
 	sig = SinOsc.ar(imp.range(80, 40), mul: imp);
-	sig = Compander.ar(sig, sig, 0.75, 1/4, 1/4);
+	sig = Compander.ar(sig, sig, 0.75, 1/4, 1/4, clampTime: 0.2, relaxTime: 1);
 	sig = sig + (InFeedback.ar(cymbalIn) * 0.05);
 	sig = sig + (imp * (
 		LPF.ar(
-			WhiteNoise.ar(IEnvGen.kr(Env([-20, -10, -10, -10], [0.25, 0.25, 0.5]), noiseAmt).dbamp),
+			WhiteNoise.ar(IEnvGen.kr(Env([-30, -29, -15, -15], [0.25, 0.25, 0.5]), noiseAmt).dbamp),
 			noiseAmt.forceRange(5, 300)
 		)
 		+ HPF.ar(
@@ -188,7 +192,7 @@ State(\peng).use({
 		\bassFreq, Pseq([20, 40, 400, 6], inf),
 		\bellFreq, Ptrace(Pseq([
 			0, 0, 0, -1, -2, -2,
-			[0, 24], 0, [0, 22], -2, -3, -3
+			0, 0, 0, -2, -3, -3
 		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf))
 	));
 
