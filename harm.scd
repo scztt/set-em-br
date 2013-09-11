@@ -9,12 +9,13 @@ var audio, freq, period, buffer, crossingBuffer, synth, pitchBuffer, pitches;
 var lastSample=0, lastZeroCrossing=0;
 
 var soundfile = SoundFile.new;
-var overshoot, env, path;
+var overshoot, env, path, baseFreq;
 
-//path = "/Users/fsc/Documents/_sounds/cello/C-string/C-str-7_mono.aif";
+path = "/Users/fsc/Documents/_sounds/cello/C-string/C-str-7_mono.aif";
+~baseFreq = 262;
 //path = "/Users/fsc/Documents/_sounds/cello/C-str-3-mono.wav";
 //path = "/Users/fsc/Documents/_sounds/stand/bluett.aiff";
-path = "/Users/fsc/Documents/_sounds/antlers/bear-full.wav";
+//path = "/Users/fsc/Documents/_sounds/antlers/bear-full.wav";
 //path = "/Users/fsc/Documents/_sounds/stand/dolce1.aiff";
 //path = "/Users/fsc/Documents/_sounds/cello/scelsi.wav";
 //path = "/Users/fsc/Documents/_sounds/playthrough.aiff";
@@ -28,6 +29,7 @@ soundfile.openRead( path );
 ~audio = audio = Signal.newClear( soundfile.numFrames.postln );
 soundfile.readData( audio );
 soundfile.close();
+~buffer.play;
 
 ~zeroCrossings = List.new;
 
@@ -109,7 +111,7 @@ fork {
 (
 ~crossingBuffer = Buffer.loadCollection(s, ~zeroCrossings.asArray);
 ~envsize = 1024;
-~transition = ~envsize * 0.0;
+~transition = ~envsize * 0.1;
 
 ~envcoll = ~envsize.collect({
 	| i |
@@ -177,7 +179,7 @@ buffer.plot;
 	durB = { ( (nextStartB-startB)/SampleRate.ir ).max(0.0000000001).min(1) / wavelength };
 
 	dur = (durB * startPosMix) + (durA * (1-startPosMix));
-	//dur = 1 / ((rate * 540) + { LFNoise2.kr(300).range(-2,2) });
+	dur = 1 / ((rate * 140) + { LFNoise2.kr(300).range(-2,2) });
 
 	#trig, trigStartA, trigStartB, trigNextStartA, trigNextStartB, trigDurA, trigDurB =
 		TDuty.ar( dur, 0, [ 1, startA, startB, nextStartA, nextStartB, durA, durB ] );
@@ -294,7 +296,8 @@ buffer.plot;
 					interp: 4),
 				(startPosMix * 2 - 1)
 			)];
-	sigA = [
+	sigA = sigA.flop.sum.postln;
+/*	sigA = [
 		BufGrainB.ar( trig,
 			dur: MouseX.kr(0,0.01),
 			sndbuf: ~buffer.bufnum,
@@ -309,7 +312,7 @@ buffer.plot;
 			pos: trigStartB / BufSamples.kr(~buffer.bufnum),
 			envbuf: ~env.bufnum,
 			interp: 4)
-	];
+	];*/
 
 	//sigA = CombC.ar( sigA, 5,
 	//	[0.1, 0.5, 2.3, 4.5], 0.4 );
@@ -322,7 +325,8 @@ buffer.plot;
 
 
 (
-~synth = {
+d = SynthDef(\cellell, {
+	| baseFreq = 100, squeal=0 |
 	var mousePos, startPos,
 		startPosA, startPosB,
 		nextStartA, nextStartB,
@@ -336,14 +340,13 @@ buffer.plot;
 		wavelength,
 		poll;
 
-	rate = MouseY.kr(50, BufDur.kr(~buffer.bufnum));
+	rate = BufDur.kr(~buffer.bufnum) * 8;
 
-	startPos = 0.5;
+	startPos = 0.0;
 	//startPos = In.kr( ~korg.busNum(\knob1) );
 	//startPos = startPos + Resonz.ar( K2A.ar(startPos), 5, 0.1);
 	startPos = LFSaw.kr(1 / rate);
-	startPos = startPos
-		* BufSamples.kr( ~crossingBuffer.bufnum );
+	startPos = startPos * BufSamples.kr( ~crossingBuffer.bufnum );
 
 	startPosA = Select.kr(startPos.floor%2, [ startPos.floor + 1, startPos.floor ]);
 	startPosB = Select.kr(startPos.floor%2, [ startPos.floor, startPos.floor + 1]);
@@ -357,12 +360,14 @@ buffer.plot;
 	nextStartA ={ Dbufrd(~crossingBuffer.bufnum, nextStartPosA % BufSamples.kr(~crossingBuffer.bufnum), 1) };
 	nextStartB ={ Dbufrd(~crossingBuffer.bufnum, nextStartPosB % BufSamples.kr(~crossingBuffer.bufnum), 1) };
 
-	wavelength = MouseX.kr(0, 1);
+	wavelength = 0.5;
 	durA = { ( (nextStartA-startA)/SampleRate.ir ).max(0.0000000001).min(1) / wavelength };
 	durB = { ( (nextStartB-startB)/SampleRate.ir ).max(0.0000000001).min(1) / wavelength };
 	//dur = (durB * startPosMix) + (durA * (1-startPosMix));
-	sigA = (140 * [2/3, 2, 4/5, 7/5]).collect({
+
+	sigA = (baseFreq * [1, 1.99]).collect({
 		|freq|
+		var sig;
 
 		dur = 1 / freq;
 
@@ -376,10 +381,10 @@ buffer.plot;
 		//				Gate.ar( trigDurB*rate, trigDurB*rate),
 		//				Gate.ar( trigStartB / BufSamples.kr(~buffer.bufnum) , trigStartB / BufSamples.kr(~buffer.bufnum))
 		//			]);
-		[
+		sig = [
 			XFade2.ar(
 				BufGrainB.ar( trig,
-					dur: 0.01,
+					dur: dur * squeal.range(1, 15),
 					sndbuf: ~buffer.bufnum,
 					rate: wavelength,
 					pos: trigStartA / BufSamples.kr(~buffer.bufnum),
@@ -391,7 +396,7 @@ buffer.plot;
 			XFade2.ar(
 				DC.ar(0),
 				BufGrainB.ar( trig,
-					dur: 0.01,
+					dur: dur * squeal.range(1, 15),
 					sndbuf: ~buffer.bufnum,
 					rate: wavelength,
 					pos: trigStartB / BufSamples.kr(~buffer.bufnum),
@@ -400,7 +405,7 @@ buffer.plot;
 				(startPosMix * 2 - 1)
 		)];
 	});
-	sigA = sigA.sum.postln;
+	sigA = sigA.sum;
 
 	sigA = [
 		CombC.ar( sigA[0], 5,
@@ -408,13 +413,25 @@ buffer.plot;
 		CombC.ar( sigA[1], 5,
 			[0.1, 0.5, 2.3, 4.5], 0.4 )
 	];
+	sigA.postln;
+	sigA = Mix(sigA.flop).postln;
+	sigA = FreeVerb2.ar(sigA[0], sigA[1], room:2.9 ).sum;
 
-	sigA = FreeVerb.ar( Mix(sigA.flop), room:2.9 ).postln;
-	//sigA;
-	LeakDC.ar( sigA ) * [1,1];
-}.play;
+	sigA = LeakDC.ar( sigA ) * [1,1];
+	Out.ar(0, sigA);
+}).add;
+DotViewer.directory = "~/Desktop".standardizePath;
+d.draw;
 )
+
+
+(
+\instrument: \cellell,
+\baseFreq: 100 * [1, 7/5],
+\squeal: 0.2,
+).play
+
 
 k.asBus(\knob1).debugScope
 
-Bus(\control, 0, 5).debugScope;
+~baseFreq * 12
