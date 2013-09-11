@@ -18,17 +18,17 @@ SynthDef( \peng, {
 	arg amp = 0.3, gate = 1, bassFreq = 15, bellFreq = 600, input = 10,
 	noiseLPF = 50, decayAmt = 3, lpf = 40, dur = 8, noiseAmt = 0.9, delayAmt = 0.1,
 	whiteAmt = 0.1;
-	var in, impulse, decay, noise, freq, freqs, amps, decays, verbSig, sig, delayTimes, delayAmts, delaySpike, env;
+	var in, impulse, decay, noise, freq, freqs, amps, decays, verbSig, sig, delayTimes, delayAmts, delaySpike, env, sigForComb;
 
-	env = EnvGen.kr(Env([0, 1, 1, 0], [0.01, 0.1, 8], releaseNode:2), gate:gate, doneAction:2);
+	env = EnvGen.kr(Env([0, 1, 1, 0], [1, 0.1, 8], releaseNode:2), gate:gate, doneAction:2);
 	freq = bellFreq;
 
 	in = In.ar(input) * env;
 
-	in = LeakDC.ar(in + Mix(CombC.ar(LeakDC.ar(in), 0.1, 1 / [0.3,2,4,8,12,20], 2, 0.001)));
-	// in = (in * FreqShift.ar( in, 300, 0.5 ))*30;
+	// in = LeakDC.ar(in + Mix(CombC.ar(LeakDC.ar(in), 0.1, 1 / [0.3,2,4,8,12,20], 2, 0.001)));
+
 	in = in * (0.4 + HardCompress.ar(
-		((FreqShift.ar(in, -40) * LPF.ar(PinkNoise.ar(noiseAmt), 380))),
+		((FreqShift.ar(in * env, -60) * LPF.ar(PinkNoise.ar(noiseAmt), lpf * 4))),
 		speed: 0.1
 	));
 	in = LeakDC.ar(in + LPF.ar(in.pow(2), noiseLPF, 10));
@@ -43,32 +43,35 @@ SynthDef( \peng, {
 	amps = [1, 0.67, 1.35, 1.8, 2.67, 1.67, 1.46, 1.33, 1.33, 1.0, 1.33, 0.3];
 	decays = [1, 0.9, 0.65, 0.55, 0.325, 0.35, 0.25, 0.2, 0.15, 0.1, 0.075, 0.2];
 
-	sig = DynKlank.ar(`[freqs, amps, decays], in + noise, decayscale:decayAmt, freqscale:1) * 0.001;
+	sig = DynKlank.ar(`[freqs, amps, decays], in + noise, decayscale: decayAmt, freqscale:1) * 0.001;
 	sig = Limiter.ar(sig, -12.dbamp);
-	sig = Compander.ar(sig, sig, 0.75, 1/2, 1/8);
+	sig = Compander.ar(sig * env, sig, 1, 1/2, 1/8) * 0.5;
 	sig = LeakDC.ar(sig);
-	sig = [sig, sig];
+
+	sigForComb = sig * env;
 	sig = sig + [
-		CombC.ar(in * sig[0], 0.4, (bellFreq * [1, 2, 3]).reciprocal, 0.4).sum,
-		CombC.ar(in * sig[1], 0.4, (bellFreq * [1.001, 2.0032, 3.0104]).reciprocal, 0.61).sum;
+		CombC.ar(in * sigForComb, 0.4, (bellFreq * [1, 2, 3]).reciprocal, 0.4).sum,
+		CombC.ar(in * sigForComb, 0.4, (bellFreq * [1.001, 2.0032, 3.0104]).reciprocal, 0.61).sum;
 	];
 	sig = sig + [
-		CombC.ar(sig[0], 0.4, [0.1,0.2,0.3], 0.2).sum / 3,
-		CombC.ar(sig[1], 0.4, [0.11,0.18,0.26], 0.2).sum / 3;
+		CombC.ar(sigForComb, 0.4, [0.1,0.2,0.3], 0.2).sum / 3,
+		CombC.ar(sigForComb, 0.4, [0.11,0.18,0.26], 0.2).sum / 3;
 	];
 	sig = LeakDC.ar(sig);
 
-	// in = in + Mix(CombC.ar(sig, 0.1, 1 / [0.3,2,4,8,12,20], 2, 0.1));
-	// in = LeakDC.ar(in);
-	//
-	// in = (in * FreqShift.ar( in, 300, 0.5 )) * 30;
-	// in = HardCompress.ar( ((sig * 0.01) + (FreqShift.ar( in, -400 ))) );
-	in = in
-	+ sig
+	//in = (in * FreqShift.ar( in, 15, 0.2 )) * 10;
+	in = HardCompress2.ar(
+		(sig * 0.8) +
+		 (FreqShift.ar(in, 100))
+	);
+
+	in = in + sig
 	+ HardCompress.ar((sig * LPF.ar(PinkNoise.ar(noiseAmt * 0.5), lpf))
 		+ (in * LPF.ar( PinkNoise.ar(noiseAmt * 0.5), lpf)));
 
 	in = in + LPF.ar(in * in, 50, 1);
+	in = in * Line.kr(0, 1, 4);
+
 
 	verbSig = FreeVerb.ar(sig * 0.5, 0.8, 0.4);
 	sig = (1 * sig)
@@ -79,6 +82,7 @@ SynthDef( \peng, {
 	delaySpike = LagUD.ar(Trig1.ar(LFNoise2.ar(6).range(0, 1) - delayAmt, 0.1), 0.01, 1.7);
 	delayTimes = [0, 1, 2, 3, 4, 5] * (4.02 / bellFreq);
 	delayAmts = [delaySpike.range(1, 0.15)] ++ (delaySpike.range(0, 0.65) ! 5);
+
 	sig = sig + (0.4 * [
 		Mix(CombC.ar(sig[0] * delaySpike, 0.1, delayTimes, delayAmts)),
 		Mix(CombC.ar(sig[1] * delaySpike, 0.1, delayTimes, delayAmts)),
@@ -86,6 +90,7 @@ SynthDef( \peng, {
 
 	sig = sig * env;
 	sig = LeakDC.ar(sig * amp);
+
 	Out.ar(0, sig);
 }).add;
 
@@ -151,9 +156,9 @@ State(\peng).use({
 	~pengControls = [
 		~pengAmp = 			CV(\amp.asSpec),
 		~pengNoiseLPF = 	CV(ControlSpec(10, 1000, warp:\exp, default: 100)),
-		~pengLPF = 			CV(ControlSpec(10, 300, warp: \exp, default: 50)),
 		~pengDecayAmt = 	CV(ControlSpec(0.1, 10, default: 1)),
 		~pengNoiseAmt = 	CV(ControlSpec(0.01, 3, default:0.9)),
+		~pengLPF = 			CV(ControlSpec(10, 200, warp: \exp, default: 50)),
 		~pengDelayAmt = 	CV(ControlSpec(0, 1, default: 0.1))
 	];
 
