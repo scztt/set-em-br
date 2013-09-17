@@ -177,12 +177,12 @@ SynthDef(\greater, {
 SynthDef(\let, {
 	var env, sig;
 	env = EnvGen.kr(Env.perc(0.01, 20, curve: -16), doneAction:2);
-	sig = RLPF.ar(LFSaw.ar(env.range(20, 44) + Rand(0, [2.0, 3.0])), 40,  0.01) * env * 0.1;
+	sig = RLPF.ar(LFSaw.ar(env.range(30, 44) + Rand(0, [2.0, 3.0])), 40,  0.01) * env * 0.1;
 	//sig = sig.fold2(0.6);
 	sig = sig.tanh;
-	sig = RLPF.ar(sig, 160);
+	sig = RLPF.ar(sig, 260);
 	sig = HPF.ar(sig, 17);
-	sig = sig.tanh * 0.4;
+	sig = sig.tanh * 1.4;
 	Out.ar(\out.ir([0, 1]), sig);
 }).add;
 
