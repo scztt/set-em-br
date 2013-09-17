@@ -21,20 +21,27 @@ MultiStateManager : Singleton {
 }
 
 State : Singleton {
-	var <initialized=false, <running = false;
-	var <initActions, <startActions, <stopActions, <freeActions, <resources;
-	var envir, <name;
+	var <initialized=false, <running = false, <>requireServer = true;
+	var <>server, <initActions, <startActions, <stopActions, <freeActions, <resources;
+	var <envir, <name;
 
 	init {
 		arg inName;
+		server = Server.default;
+		ServerTree.add(this, server);
+		ServerQuit.add(this, server);
+		CmdPeriod.add(this);
+
 		initActions = SparseArray();
 		startActions = SparseArray();
 		stopActions = SparseArray();
 		freeActions = SparseArray();
 		resources = SparseArray();
+
 		envir = Environment();
-		envir[\name] = inName;
 		name = inName;
+		envir[\name] = name;
+		envir[\resources] = resources;
 
 		this.clear();
 	}
@@ -61,6 +68,9 @@ State : Singleton {
 	}
 
 	clear {
+		this.doStop();
+		this.doFree();
+
 		initActions.clear(8);
 		startActions.clear(8);
 		stopActions.clear(8);
@@ -76,27 +86,16 @@ State : Singleton {
 		envir.use(func);
 	}
 
-	doInit {
-		arg ...args;
-		initActions.do({
-			arg action;
-			try {
-				envir.use({
-					action.value(*args)
-				});
-			} {
-				|e|
-				this.onError(e)
-			};
-		});
-		initialized = true;
-		this.update(\initialized, true);
+	log {
+		arg str;
+		"%: %".format(envir[\name].asString.toUpper, str).postln;
 	}
 
-	doStart {
+	doInit {
 		arg ...args;
-		if (running.not) {
-			startActions.do({
+
+		if (initialized.not && (server.serverRunning || requireServer.not)) {
+			initActions.do({
 				arg action;
 				try {
 					envir.use({
@@ -107,10 +106,36 @@ State : Singleton {
 					this.onError(e)
 				};
 			});
-			running = true;
-			this.update(\running, true);
+
+			initialized = true;
+			envir.use({ this.changed(\initialized, true) });
+			this.log("initialized");
+		};
+	}
+
+	doStart {
+		arg ...args;
+		if (initialized.not) {
+			"State not initialized.".warn;
 		} {
-			"State already started.".warn;
+			if (running) {
+				"State already started.".warn;
+			} {
+				startActions.do({
+					arg action;
+					try {
+						envir.use({
+							action.value(*args)
+						});
+					} {
+						|e|
+						this.onError(e)
+					};
+				});
+				running = true;
+				envir.use({ this.changed(\running, true) });
+				this.log("started");
+			} ;
 		};
 	}
 
@@ -129,7 +154,8 @@ State : Singleton {
 				};
 			});
 			running = false;
-			this.update(\running, false);
+			envir.use({ this.changed(\running, false) });
+			this.log("stopped");
 		} {
 			"State not running.".warn;
 		};
@@ -137,21 +163,76 @@ State : Singleton {
 
 	doFree {
 		arg ...args;
-		freeActions.do({
-			arg action;
-			try {
-				envir.use({
-					action.value(*args)
-				});
-			} {
-				|e|
-				this.onError(e)
-			};
-		});
-		resources.do({
-			arg resource;
-			resource.free();
-		});
-		initialized = false;
+
+		if (running) {
+			this.doStop();
+		};
+
+		if (initialized) {
+			freeActions.do({
+				arg action;
+				try {
+					envir.use({
+						action.value(*args)
+					});
+				} {
+					|e|
+					this.onError(e)
+				};
+			});
+
+			envir[\resources].do({
+				arg resource;
+				this.freeResource(resource);
+			});
+
+			envir.use({ this.changed(\initialized, false) });
+			initialized = false;
+			this.log("freed");
+		}
+	}
+
+	doOnServerTree {
+		arg inServer;
+		if (inServer == server) {
+			this.doInit();
+		}
+	}
+
+	doOnServerQuit {
+		arg inServer;
+		if (inServer == server) {
+			this.doFree();
+		}
+	}
+
+	cmdPeriod {
+		this.doStop();
+		this.doFree();
+	}
+
+	freeResource {
+		arg resource;
+
+		case
+		{ resource.isKindOf(Buffer) } {
+			resource.free;
+		}
+
+		{ resource.isKindOf(Bus) } {
+			resource.free;
+		}
+
+		{ resource.isKindOf(Node) } {
+			resource.free;
+		}
+
+		{ resource.isKindOf(SimpleController) } {
+			resource.remove();
+		}
+
+		{ resource.isKindOf(Collection) } {
+			resource.do(this.freeResource(_));
+		};
 	}
 }
