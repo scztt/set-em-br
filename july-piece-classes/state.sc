@@ -227,12 +227,16 @@ State : Singleton {
 			resource.free;
 		}
 
+		{ resource.isKindOf(CVGroup) } {
+			resource.do(this.free());
+		}
+
 		{ resource.isKindOf(SimpleController) } {
 			resource.remove();
 		}
 
 		{ resource.isKindOf(Collection) } {
 			resource.do(this.freeResource(_));
-		};
+		}
 	}
 }
