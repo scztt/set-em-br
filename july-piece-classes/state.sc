@@ -239,4 +239,9 @@ State : Singleton {
 			resource.do(this.freeResource(_));
 		}
 	}
+
+	printOn {
+		arg stream;
+		stream << "State(\\" << name << ") [initialized:" << initialized << ", running:" << running << ")";
+	}
 }
