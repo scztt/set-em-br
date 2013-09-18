@@ -145,7 +145,7 @@ State(\peng).initActions.add({
 	}).add;
 
 	SynthDef(\driver, {
-		arg out=0, pengOut = 0, cymbalIn, gate = 0, amp = 1, freq = 6300, rate = 8, decay = 0.9, double = 0, noiseAmt = 0.2;
+		arg out = 0, pengOut = 0, cymbalIn, gate = 0, amp = 1, freq = 6300, rate = 8, decay = 0.9, double = 0, noiseAmt = 0.2;
 		var sig, imp, multiImp, cymbalGate, multiAmt;
 
 		noiseAmt = noiseAmt * LFNoise2.kr(0.6).range(0.95, 1.05);
@@ -178,9 +178,11 @@ State(\peng).initActions.add({
 
 		//	sig = sig * EnvGen.kr(Env([0, 1, 1, 0], [0.1, 1, 3], releaseNode:2), gate:gate, doneAction:2);
 
-		Out.ar(out, sig * [1, 1] * amp);
+		Out.ar(out, sig * [1, 1] * amp.lag(0.5));
 		Out.ar(pengOut, sig * [1, 1]);
 	}).add();
+
+	~lc.notNil.if({ ~lc.free });
 
 	~resources = SparseArray();
 	~resources.addAll([
@@ -190,25 +192,18 @@ State(\peng).initActions.add({
 		~pengGroup = Group(s),
 	]);
 
-	~button = ~lc.buttons[0];
-	~button.toggle = true;
-	~resources.add(
-		SimpleController(State(\peng)).put(
-			\running, { |thing, changed, val| ~button.lit_(val) }
-		)
-	);
-
-	~button.buttonOnActions.add({
+	// Play button
+	~playButton = ~lc.buttons[4].default;
+	~playButton.toggle = true;
+	~playButton.buttonOnActions.add({
 		State(\peng).doStart();
 	});
 
-	~button.buttonOffActions.add({
+	~playButton.buttonOffActions.add({
 		State(\peng).doStop();
 	});
 
-	// CV mappings to peng
-
-
+	// CV's
 	~driverControls = [
 		~driverAmp = 		CV(\amp.asSpec),
 		~driverFreq = 		CV(ControlSpec(20, 5000, warp: \exp, default: 1000)),
@@ -248,14 +243,13 @@ State(\peng).initActions.add({
 		\gui, Pfunc({
 			| e |
 			var now = AppClock.seconds;
-			e.postln;
 			~eventList.add((
 				\start: now,
 				\end: now + e.delta,
 				\instrument: e[\instrument].asString,
 				\node: e[\bellFreq].round(0.1);
 			));
-			{ ~eventWindow.refresh() }.defer();
+			{ ~eventWindow.refresh() }.e.defer();
 		})
 	));
 
@@ -282,14 +276,14 @@ State(\peng).initActions.add({
 	Pdef(\note2, Pbind(
 		\bellFreq, Pseq([
 			0, 0, -0, -0, -1, -6, -6, -6, -6, -6, -6,
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
+		].collect(Scale.partch_o3.degreeToFreq(_ , 98, 0)), inf)
 	));
 
 	Pdef(\noteMain, Pbind(
 		\bellFreq, Pseq([
 			0, 0, 0, -1, -2, -2,
 			0, 0, 0, -2, -3, -3
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
+		].collect(Scale.partch_o3.degreeToFreq(_ , 98, 0)), inf)
 	));
 
 	Pdef(\pengGroup, (\group: ~pengGroup));
@@ -302,6 +296,7 @@ State(\peng).initActions.add({
 
 	Pdef(\mainPat).clear();
 	//Pdef(\mainPat, ~patterns[0])
+	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
 
 
@@ -334,6 +329,7 @@ State(\peng).startActions.add({
 
 	~patterns.do({
 		| pat, i |
+		~patternButtons[i].default();
 		~patternButtons[i].toggle = true;
 		~patternButtons[i].cv.action_({ |cv| "%: %".format(i, cv.item) });
 		~patternButtons[i].buttonOnActions.add({
@@ -361,6 +357,8 @@ State(\peng).startActions.add({
 	~driverEvent.play;
 	~pattern = Pdef(\mainPat);
 	~pattern.play;
+
+	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
 
 
@@ -371,6 +369,7 @@ State(\peng).startActions.add({
 State(\peng).stopActions.add({
 	~driverEvent.free;
 	~pattern.stop;
+	~patternButtons.do(_.cv_(nil));
 	~knobs.do(_.cv_(nil));
 	~pengMappings.do(_.remove);
 });
@@ -380,10 +379,7 @@ State(\peng).stopActions.add({
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 State(\peng).doInit();
-State(\peng).envir.push();
-State(\peng).doStart();
-
-
+EnvirWindow.show()
 )
 
 
