@@ -81,6 +81,14 @@ State : Singleton {
 		envir[\name] = name;
 	}
 
+	push {
+		envir.push();
+	}
+
+	pop {
+		envir.pop();
+	}
+
 	use {
 		arg func;
 		envir.use(func);
@@ -225,6 +233,10 @@ State : Singleton {
 
 		{ resource.isKindOf(Node) } {
 			resource.free;
+		}
+
+		{ resource.isKindOf(CV) } {
+			resource.releaseDependants;
 		}
 
 		{ resource.isKindOf(CVGroup) } {

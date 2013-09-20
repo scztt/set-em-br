@@ -175,8 +175,7 @@ State(\peng).initActions.add({
 		));
 
 		sig = sig + HPF.ar(CombC.ar(sig * LFNoise2.kr(0.1).pow(4), 3, 2.1, 12), 400);
-
-		//	sig = sig * EnvGen.kr(Env([0, 1, 1, 0], [0.1, 1, 3], releaseNode:2), gate:gate, doneAction:2);
+		sig = sig * EnvGen.kr(Env([0, 1, 1, 0], [0.1, 1, 3], releaseNode:2), gate:gate, doneAction:2);
 
 		Out.ar(out, sig * [1, 1] * amp.lag(0.5));
 		Out.ar(pengOut, sig * [1, 1]);
@@ -221,24 +220,6 @@ State(\peng).initActions.add({
 		~pengDelayAmt = 	CV(ControlSpec(0, 1, default: 0.1))
 	];
 
-	~driverEvent = (
-		\instrument: \driver,
-		\pengOut: ~bus.index,
-		\cymbalIn: ~cymbalBus.index,
-		\rate: 8,
-		\amp: ~driverAmp,
-		\freq: ~driverFreq,
-		\decay: ~driverDecay,
-		\double: ~driverDouble,
-		\noiseAmt: ~driverNoiseAmt
-	).cvSynth;
-
-	~cymbalEvent = (
-		\instrument: \cymbal,
-		\out: ~cymbalBus.index,
-		\amp: 0.8,
-	).cvSynth;
-
 	Pdef(\guitrace, Pbind(
 		\gui, Pfunc({
 			| e |
@@ -270,20 +251,20 @@ State(\peng).initActions.add({
 	Pdef(\note1, Pbind(
 		\bellFreq, Pseq([
 			-8, -8, -8, -8, -8, -6, -6,
-		].collect(Scale.partch_o3.degreeToFreq(_ , 98, 0)), inf)
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
 	));
 
 	Pdef(\note2, Pbind(
 		\bellFreq, Pseq([
 			0, 0, -0, -0, -1, -6, -6, -6, -6, -6, -6,
-		].collect(Scale.partch_o3.degreeToFreq(_ , 98, 0)), inf)
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
 	));
 
 	Pdef(\noteMain, Pbind(
 		\bellFreq, Pseq([
 			0, 0, 0, -1, -2, -2,
 			0, 0, 0, -2, -3, -3
-		].collect(Scale.partch_o3.degreeToFreq(_ , 98, 0)), inf)
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
 	));
 
 	Pdef(\pengGroup, (\group: ~pengGroup));
@@ -354,7 +335,25 @@ State(\peng).startActions.add({
 		})
 	);
 
-	~driverEvent.play;
+	~driverSynth.notNil.if({ ~driverSynth.release() });
+	~driverSynth = Synth.controls(\driver, args: [
+		\pengOut: ~bus.index,
+		\cymbalIn: ~cymbalBus.index,
+		\gate: 1,
+		\rate: 8,
+		\amp: ~driverAmp,
+		\freq: ~driverFreq,
+		\decay: ~driverDecay,
+		\double: ~driverDouble,
+		\noiseAmt: ~driverNoiseAmt
+	]);
+
+	~cymbalEvent = (
+		\instrument: \cymbal,
+		\out: ~cymbalBus.index,
+		\amp: 0.8,
+	).cvSynth;
+
 	~pattern = Pdef(\mainPat);
 	~pattern.play;
 
@@ -367,7 +366,8 @@ State(\peng).startActions.add({
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 State(\peng).stopActions.add({
-	~driverEvent.free;
+	~driverSynth.release;
+	~driverSynth = nil;
 	~pattern.stop;
 	~patternButtons.do(_.cv_(nil));
 	~knobs.do(_.cv_(nil));

@@ -163,6 +163,16 @@ State(\gliz).initActions.add({
 	~lc = LCDevice();
 	~lc.knobs.do(_.ringStyle_(\fill));
 
+	// Play button
+	~playButton = ~lc.buttons[4].default;
+	~playButton.toggle = true;
+	~playButton.buttonOnActions.add({
+		State(\gliz).doStart();
+	});
+
+	~playButton.buttonOffActions.add({
+		State(\gliz).doStop();
+	});
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Controls
@@ -183,13 +193,17 @@ State(\gliz).initActions.add({
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Patterns
 	Pdef(\b_base, Pbind(
-		\instrument, \lichen1,
+		\instrument, \glassHit,
+		\glassName, Prand([\B], inf),
+		\glass, Pfunc({ |e| e.postln; e.putAll(g[e[\glassName]].choose()) }),
+		\buffer, Pfunc({ |e| e[\buffer].bufnum }),
 		\dur, Pseq([1], inf),
+		\amp, Prand([0.03, 0.02, 0.021, 0.01], inf),
 		\out, State(\gliz)[\bellBus].index,
-		//\scale, Scale.partch_o1(),
-		\scale, Scale.bartok(),
+		\scale, Scale.partch_o2(),
+		//\scale, Scale.bartok(),
 		\root, 0,
-		\octave, 8,
+		\octave, 6,
 		\degree, 0,
 		\impulseFreq, 0,
 		\impulseDecay, 10,
@@ -242,6 +256,10 @@ State(\gliz).initActions.add({
 		\impulseFreq, 10
 	));
 
+	Pdef(\stutter, Pbind(
+
+	));
+
 	Pdef(\durpat1, Pbind(
 		\impulseFreq, Prand([0, 0, 16, 1, 4, 6], inf),
 		\dur, Pseq([4, 4, 0.5, 0.5, 0.5, 8, 4, 4, 4, 4, 0.1, 0.1, 0.1, 8], inf),
@@ -281,7 +299,16 @@ State(\gliz).initActions.add({
 		\out, State(\gliz)[\bellBus].index,
 	));
 
-	Pdef(\b_base);
+	Pdef(\high1, Pbind(
+		\dur, Prand([12, 12, 16, 24], inf),
+		\amp, 0.1,
+		\octave, 7,
+		.
+		\degree, [6, 6.76]
+	));.
+
+	Pdef(\main);
+
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Controls
@@ -321,7 +348,11 @@ State(\gliz).startActions.add({
 		~lc.knobs[3 + (i * 4)].lightWhenActive_(true).cv = cv;
 	});
 
-	Pdef(\b_base).play;
+	Pdef(\main).stop;
+	Pdef(\main, Pdef(\durpat2) <> Pdef(\slow) <> Pdef(\b_notes1) <> Pdef(\b_base)).play;
+
+	Pdef(\high, Pdef(\high1) <> Pdef(\b_base)).play;
+
 
 	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
@@ -339,5 +370,9 @@ State(\gliz).stopActions.add({
 });
 
 State(\gliz).doInit()
+//
+// State(\gliz).push
+//
+// Pdef(\main, ~patterns[1]).play
 
 

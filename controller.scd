@@ -1,4 +1,5 @@
-
+// s.options.device = "Fireface 800 (C2F)";
+// s.reboot;
 State(\main).use({
 	~lc.postln;
 	if (~lc.notNil) { ~lc.disconnect.free };
@@ -8,7 +9,7 @@ State(\main).use({
 
 	~lc.buttons[0..3].do({
 		|b|
-		b.default.toggle_(true)
+		b.default.toggle_(true);
 	});
 
 	~lc.buttons[0].buttonOnActions.add(e{
@@ -35,12 +36,12 @@ State(\main).use({
 
 	~lc.buttons[2].buttonOnActions.add({
 		"button 2 on".postln;
-		//State(\gliz)[\lc].connect();
+		State(\gliz)[\lc].connect();
 		~currentState = State(\gliz);
 	});
 
 	~lc.buttons[2].buttonOffActions.add({
-		//State(\gliz)[\lc].disconnect();
+		State(\gliz)[\lc].disconnect();
 	});
 
 	CVModalGroup(*~lc.buttons[0..3]);

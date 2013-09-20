@@ -91,9 +91,8 @@ State(\mass).initActions.add({
 		volume = \volume.kr(0.7).lag(0.5);
 		sig = Splay.ar(noise, density.range(0.1, 1));
 		sig = LeakDC.ar(sig);
-		sig = volume * sig;
-		sig = Compander.ar(sig, sig, volume, 1/12, 1/8, 1, 5);
-		sig = sig * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 10], releaseNode: 2),
+		sig = Compander.ar(sig, sig, 0.6, 1/6, 1/8, 1, 5);
+		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 10], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
@@ -166,9 +165,9 @@ State(\mass).initActions.add({
 		});
 
 		volume = \volume.kr(0.7).lag(0.5);
-		sig = volume * Splay.ar(noise, density.range(0.1, 1));
-		sig = Compander.ar(sig, sig, volume, 1/12, 1/8, 1, 5);
-		sig = sig * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 10], releaseNode: 2),
+		sig = Splay.ar(noise, density.range(0.1, 1));
+		sig = Compander.ar(sig, sig, 0.6, 1/6, 1/8, 1, 5);
+		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 10], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
@@ -320,4 +319,5 @@ State(\mass).stopActions.add({
 State(\mass).doInit();
 
 State(\mass).envir.push;
+
 
