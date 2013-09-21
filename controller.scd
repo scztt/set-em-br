@@ -1,14 +1,17 @@
 // .value\W+= (.*);
-// s.options.device = "Fireface 800 (C2F)";
-// s.reboot;
+
 Log.logErrors();
 LogWindow(\perf, [\gliz, \peng, \mass, \control, \error]).gui;
 EnvirWindow.show();
+
+
 
 Require("server-config", always: true);
 Require("GLIZ", always: true);
 Require("PENG", always: true);
 Require("MASS", always: true);
+
+
 
 State(\control).use({
 	~lc.postln;
