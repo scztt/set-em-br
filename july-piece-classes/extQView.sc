@@ -1,33 +1,33 @@
-+ QView {
-	autoRememberPosition {
-		| ...addr |
+WindowViewRecall {
+	*autoRememberPosition {
+		| that ...addr |
 
 		var func = {
-			this.rememberPosition(*addr);
+			that.rememberPosition(*addr);
 		};
 
-		this.toFrontAction = this.toFrontAction.addFunc(func);
-		this.endFrontAction = this.endFrontAction.addFunc(func);
+		that.toFrontAction = that.toFrontAction.addFunc(func);
+		that.endFrontAction = that.endFrontAction.addFunc(func);
 	}
 
-	rememberPosition {
-		| ...addr |
-		var bounds = this.bounds;
+	*rememberPosition {
+		| that ...addr |
+		var bounds = that.bounds;
 		if (bounds.notNil) {
-			Archive.global.put(*([\WindowPositions] ++ addr ++ [ this.bounds ]));
+			Archive.global.put(*([\WindowPositions] ++ addr ++ [ that.bounds ]));
 		}
 	}
 
-	recallPosition {
-		| ...addr |
+	*recallPosition {
+		| that ...addr |
 		var bounds = Archive.global.at(*([\WindowPositions] ++ addr));
 		if (bounds.notNil) {
-			this.bounds = bounds;
+			that.bounds = bounds;
 		}
 	}
 
-	resetWindowPositions {
-		| ...addrs |
+	*resetWindowPositions {
+		| that ...addrs |
 		if (addrs.isEmpty) {
 			Archive.global.put(\WindowPositions, nil);
 		} {
@@ -37,5 +37,51 @@
 			});
 		};
 		Archive.write();
+	}
+}
+
++ QWindow {
+	autoRememberPosition {
+		| ...addr |
+		WindowViewRecall.autoRememberPosition(this, *addr);
+	}
+
+	rememberPosition {
+		| ...addr |
+		if (this.isClosed.not) {
+			WindowViewRecall.rememberPosition(this, *addr);
+		}
+	}
+
+	recallPosition {
+		| ...addr |
+		WindowViewRecall.recallPosition(this, *addr);
+	}
+
+	resetWindowPositions {
+		| ...addrs |
+		WindowViewRecall.resetWindowPositions(this, *addrs);
+	}
+}
+
++ QView {
+	autoRememberPosition {
+		| ...addr |
+		WindowViewRecall.autoRememberPosition(this, *addr);
+	}
+
+	rememberPosition {
+		| ...addr |
+		WindowViewRecall.rememberPosition(this, *addr);
+	}
+
+	recallPosition {
+		| ...addr |
+		WindowViewRecall.recallPosition(this, *addr);
+	}
+
+	resetWindowPositions {
+		| ...addrs |
+		WindowViewRecall.resetWindowPositions(this, *addrs);
 	}
 }
