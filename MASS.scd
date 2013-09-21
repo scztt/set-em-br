@@ -1,6 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // SYNTHDEFS
 State(\mass).clear;
+State(\mass).autoEnvirWindow = true;
 
 State(\mass).initActions.add({
 	var chordSequence, chordSequenceLow, chordSequenceHigh, mirror, voiceCount;
@@ -231,8 +232,6 @@ State(\mass).initActions.add({
 	~letEvent = (
 		\instrument: \let
 	).cvSynth;
-
-	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
 
 
@@ -256,7 +255,7 @@ State(\mass).startActions.add({
 	~lowTrigger = ~lc.buttons[6].default();
 	~lowTrigger.toggle = true;
 	~lowTrigger.buttonOnActions.add(e{
-		"low".postln;
+		Log(\mass, "low started");
 		if (~lowSynth.notNil) { ~lowSynth.release() };
 
 		~lowSynth = Synth.controls(\lesser, [
@@ -267,7 +266,7 @@ State(\mass).startActions.add({
 		]);
 	});
 	~lowTrigger.buttonOffActions.add(e{
-		"low off".postln;
+		Log(\mass, "low stopped");
 		~lowSynth.release;
 		~lowSynth = nil;
 	});
@@ -284,7 +283,7 @@ State(\mass).startActions.add({
 	~highTrigger = ~lc.buttons[5].default();
 	~highTrigger.toggle_(true);
 	~highTrigger.buttonOnActions.add(e{
-		"high".postln;
+		Log(\mass, "high started");
 		if (~highSynth.notNil) { ~highSynth.release() };
 
 		~highSynth = Synth.controls(\greater, [
@@ -295,7 +294,7 @@ State(\mass).startActions.add({
 		]);
 	});
 	~highTrigger.buttonOffActions.add(e{
-		"high off".postln;
+		Log(\mass, "high stopped");
 		~highSynth.release;
 		~highSynth = nil;
 	});
@@ -304,7 +303,7 @@ State(\mass).startActions.add({
 	// let
 	~letTrigger = ~lc.buttons[7].default();
 	~letTrigger.buttonOnActions.add(e{
-		"let".postln;
+		Log(\mass, "let triggered");
 		~letEvent.play;
 	});
 
@@ -317,7 +316,4 @@ State(\mass).stopActions.add({
 });
 
 State(\mass).doInit();
-
-State(\mass).envir.push;
-
 
