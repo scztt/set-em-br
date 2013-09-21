@@ -1,10 +1,10 @@
 // .value\W+= (.*);
 
 Log.logErrors();
-LogWindow(\perf, [\gliz, \peng, \mass, \control, \error]).gui;
+
+LogWindow(\perf, [\gliz, \peng, \mass, \control, \error]).gui();
+
 EnvirWindow.show();
-
-
 
 Require("server-config", always: true);
 Require("GLIZ", always: true);
@@ -12,12 +12,10 @@ Require("PENG", always: true);
 Require("MASS", always: true);
 
 
-
 State(\control).use({
 	~lc.postln;
 	if (~lc.notNil) { ~lc.disconnect.free };
 	~lc = LCDevice();
-	~lc.connect;
 	~currentState = nil;
 
 	~lc.buttons[0..3].do({
@@ -59,5 +57,8 @@ State(\control).use({
 	});
 
 	CVModalGroup(*~lc.buttons[0..3]);
-});
 
+	~lc.connect;
+
+	Log(\control, "READY");
+});
