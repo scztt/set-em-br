@@ -32,7 +32,7 @@ State(\mass).initActions.add({
 
 		density = \density.kr(0).lag(5);
 		fx = \fx.kr(0).lag(5);
-		clip = \clip.kr(5);
+		clip = \clip.kr(5).lag(8);
 
 		phase = LFNoise2.kr(0.1).range(0.06, 0.09);
 		pulse = (Impulse.ar(3) * WhiteNoise.ar(2)) +
@@ -43,7 +43,7 @@ State(\mass).initActions.add({
 			PanAz.ar(
 				voiceCount, pulse,
 				pos: LFNoise2.kr(0.06).range(-1,1),
-				width: LFNoise2.kr(0.07).range(2 + (density * 10), 2 + (density * 20))
+				width: LFNoise2.kr(0.07).range(2 + (density), 2 + (density * 4))
 			)
 		}).sum;
 
@@ -65,18 +65,18 @@ State(\mass).initActions.add({
 		noise = phases.collect({
 			| phase, i |
 			var sig, degree, freq, freq1, freq2, saw, hpEnv, scale, bump;
-			hpEnv = max(0, SinOsc.kr(0.007, phase).abs - density.exprange(0.9, 0.42)).lag(0.2);
+			hpEnv = max(0, SinOsc.kr(0.007, phase).abs - density.linlin(0, 1, 0.55, 0.42)).lag(0.2);
 			freq = freqs[i];
 			if (i < 35) {
-				freq = freq * (density.range(1.0, 1.04) + [0.03.rand, 0.02.rand, 0.04.rand]);
-				saw = LFSaw.ar(freq).sum * density.range(0.2, 1.0);
+				freq = freq * (density.linlin(0, 1, 1.0, 1.06) + [0.03.rand, 0.02.rand, 0.04.rand]);
+				saw = LFSaw.ar(freq).sum * density.range(0.4, 1.0);
 			} {
 				freq = freq * (density.range(1, 1) + [0.015.rand, 0.01.rand, 0.021.rand]);
 				saw = LFPulse.ar(freq, 0, density.range(0, 0.99)).sum * max(density - 0.5, 0) * 1;
 			};
 
 			sig = saw;
-			sig = (BrownNoise.ar(1) + sig) * hpEnv;
+			sig = (BrownNoise.ar(1 + density.linlin(0, 1, 0, 0.5)) + sig) * hpEnv;
 			sig = LPF.ar(sig, max(density.exprange(10, 14000) * hpEnv, 10));
 			filtSig = HPF.ar(sig, clip.range(500, 18000), mul: clip.range(1, 4.0)) +
 			LPF.ar(sig, clip.range(20000, 40), mul:0);
@@ -96,7 +96,7 @@ State(\mass).initActions.add({
 		sig = Splay.ar(noise, density.range(0.1, 1));
 		sig = LeakDC.ar(sig);
 		sig = Compander.ar(sig, sig, 0.6, 1/6, 1/8, 1, 5);
-		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 10], releaseNode: 2),
+		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
@@ -171,7 +171,7 @@ State(\mass).initActions.add({
 		volume = \volume.kr(0.7).lag(0.5);
 		sig = Splay.ar(noise, density.range(0.1, 1));
 		sig = Compander.ar(sig, sig, 0.6, 1/6, 1/8, 1, 5);
-		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 10], releaseNode: 2),
+		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
@@ -212,7 +212,7 @@ State(\mass).initActions.add({
 		~lowVolume = CV(ControlSpec(0, 1, default: 0.7)),
 		~lowDensity = CV(ControlSpec(0, 1, default: 0.0)),
 		~lowFx = CV(ControlSpec(0, 1, default: 0.0)),
-		~lowClip = CV(ControlSpec(0, 1, default: 0.0)),
+		~lowClip = CV(ControlSpec(0.0, 1.0, warp:\sin, default: 0.0)),
 		~lowDrop = CV(ControlSpec(0, 1, step: 1, default: 0)),
 
 		~highVolume = CV(ControlSpec(0, 1, default: 0.1)),
