@@ -1,6 +1,16 @@
+// .value\W+= (.*);
 // s.options.device = "Fireface 800 (C2F)";
 // s.reboot;
-State(\main).use({
+Log.logErrors();
+LogWindow(\perf, [\gliz, \peng, \mass, \control, \error]).gui;
+EnvirWindow.show();
+
+Require("server-config", always: true);
+Require("GLIZ", always: true);
+Require("PENG", always: true);
+Require("MASS", always: true);
+
+State(\control).use({
 	~lc.postln;
 	if (~lc.notNil) { ~lc.disconnect.free };
 	~lc = LCDevice();
@@ -13,34 +23,35 @@ State(\main).use({
 	});
 
 	~lc.buttons[0].buttonOnActions.add(e{
-		"peng connected".postln;
+		Log(\peng, "connected");
 		State(\peng)[\lc].connect();
 		~currentState = State(\peng);
 	});
 
 	~lc.buttons[0].buttonOffActions.add(e{
-		"peng disconnected".postln;
+		//Log(\peng, "disconnected");
 		State(\peng)[\lc].disconnect();
 	});
 
 	~lc.buttons[1].buttonOnActions.add(e{
-		"mass connected".postln;
+		Log(\mass, "connected");
 		State(\mass)[\lc].connect();
 		~currentState = State(\mass);
 	});
 
 	~lc.buttons[1].buttonOffActions.add(e{
-		"mass disconnected".postln;
+		//Log(\mass, "disconnected");
 		State(\mass)[\lc].disconnect();
 	});
 
 	~lc.buttons[2].buttonOnActions.add({
-		"button 2 on".postln;
+		Log(\gliz, "connected");
 		State(\gliz)[\lc].connect();
 		~currentState = State(\gliz);
 	});
 
 	~lc.buttons[2].buttonOffActions.add({
+		//Log(\gliz, "disconnected");
 		State(\gliz)[\lc].disconnect();
 	});
 
