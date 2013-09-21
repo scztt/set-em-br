@@ -1,13 +1,15 @@
 //MultiStateManager(\perf).switch(State(\peng));
+EnvirWindow.update(currentEnvironment);
 
 (
 State(\peng).clear;
+State(\peng).autoEnvirWindow = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // INIT
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 State(\peng).initActions.add({
-	~eventWindow = Window().layout_(VLayout(nil)).front();
+	/*~eventWindow = Window().layout_(VLayout(nil)).front();
 
 	~eventList = List();
 
@@ -40,7 +42,7 @@ State(\peng).initActions.add({
 		});
 
 		~eventList.removeAll(toRemove);
-		~eventWindow.refresh();
+		//~eventWindow.refresh();
 	};
 
 	r = Routine({
@@ -51,7 +53,7 @@ State(\peng).initActions.add({
 	}).play(AppClock);
 
 	~eventWindow.onClose_({ r.stop });
-
+*/
 
 	SynthDef(\cymbal, {
 		arg out = 0, amp = 0.1, loDecay = 8, hiDecay = 15;
@@ -220,7 +222,7 @@ State(\peng).initActions.add({
 		~pengDelayAmt = 	CV(ControlSpec(0, 1, default: 0.1))
 	];
 
-	Pdef(\guitrace, Pbind(
+	/*Pdef(\guitrace, Pbind(
 		\gui, Pfunc({
 			| e |
 			var now = AppClock.seconds;
@@ -232,7 +234,7 @@ State(\peng).initActions.add({
 			));
 			{ ~eventWindow.refresh() }.e.defer();
 		})
-	));
+	));*/
 
 	Pdef(\peng, Pbind(
 		\instrument, \peng,
@@ -270,14 +272,23 @@ State(\peng).initActions.add({
 	Pdef(\pengGroup, (\group: ~pengGroup));
 
 	~patterns = [
-		Pdef(\guitrace) <> Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng),
-		Pdef(\guitrace) <> Pdef(\note2) <> Pdef(\pengGroup) <> Pdef(\peng),
-		Pdef(\guitrace) <> Pdef(\noteMain) <> Pdef(\pengGroup) <> Pdef(\peng),
+		Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng),
+		Pdef(\note2) <> Pdef(\pengGroup) <> Pdef(\peng),
+		Pdef(\noteMain) <> Pdef(\pengGroup) <> Pdef(\peng),
+	];
+
+	~states = [
+		e({
+			SlewCV.all([
+				~driverFreq, 20,
+				~driverDecay, 0.977231016606,
+				~driverDouble, 0,
+				~driverNoiseAmt, 0.43307086614173
+			], 6);
+		})
 	];
 
 	Pdef(\mainPat).clear();
-	//Pdef(\mainPat, ~patterns[0])
-	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
 
 
@@ -285,7 +296,6 @@ State(\peng).initActions.add({
 // FREE
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 State(\peng).freeActions.add({
-	~eventWindow.close();
 	~lc.free;
 });
 
@@ -304,25 +314,26 @@ State(\peng).startActions.add({
 	].connectToNode(Server.default, ~pengGroup.nodeID);
 
 	~patternButtons = ~lc.buttons[5..12];
+
+	~patternButtons[0].default().toggle_(true);
+	~patternButtons[0].buttonOnActions.add({
+		Log(\peng, "no pattern.");
+		Pdef(\mainPat).stop;
+	});
+
+	~states.do({
+		| state, i |
+		~patternButtons[i].default();
+		~patternButtons[i].toggle = true;
+		~patternButtons[i].buttonOnActions.add({
+			Log(\peng, "state on %: %".format(i, state));
+			state.value();
+		});
+	});
+
 	~resources.add(
 		~patternGroup = CVModalGroup(*~patternButtons)
 	);
-
-	~patterns.do({
-		| pat, i |
-		~patternButtons[i].default();
-		~patternButtons[i].toggle = true;
-		~patternButtons[i].cv.action_({ |cv| "%: %".format(i, cv.item) });
-		~patternButtons[i].buttonOnActions.add({
-			|cv|
-			"pattern on %: %".format(i, cv.value).postln;
-			Pdef(\mainPat, pat);
-		});
-		~patternButtons[i].buttonOffActions.add({
-			|cv|
-			"pattern off %: %".format(i, cv.value).postln;
-		});
-	});
 
 	~knobs = List().addAll(
 		~driverControls.collect({
@@ -355,9 +366,6 @@ State(\peng).startActions.add({
 	).cvSynth;
 
 	~pattern = Pdef(\mainPat);
-	~pattern.play;
-
-	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
 
 
@@ -379,7 +387,4 @@ State(\peng).stopActions.add({
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 State(\peng).doInit();
-EnvirWindow.show()
 )
-
-
