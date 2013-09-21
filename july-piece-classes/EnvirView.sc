@@ -1,5 +1,5 @@
 EnvirWindow {
-	classvar window, envirs, envirTabMap,
+	classvar <window, envirs, envirTabMap,
 	bigFont, smallFont;
 
 	*initClass {
@@ -30,6 +30,9 @@ EnvirWindow {
 			this.buildTabFor(envir, name);
 		});
 
+		window.recallPosition(\EnvirView);
+		window.autoRememberPosition(\EnvirView);
+
 		^window;
 	}
 
@@ -42,20 +45,21 @@ EnvirWindow {
 
 			if (window.notNil) {
 				envirTabMap[envir] = this.buildTabFor(envir, name);
-				window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size - 1));
+				//window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size - 1));
 			}
 		}
 	}
 
 	*remove {
 		| envir |
+		var tab = envirTabMap[envir];
+
 		envirs[envir] = nil;
 
 		if (window.notNil) {
-			var tab = envirTabMap[envir];
 			tab.remove();
 			envirTabMap[envir] = nil;
-			window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size + 1));
+			//window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size + 1));
 		}
 	}
 
@@ -70,7 +74,7 @@ EnvirWindow {
 
 	*buildTabFor {
 		|envir, name, update = false|
-		var scrollView, view, subView, hasContents = false, collView, cvCount = 0, copyButton;
+		var scrollView, view, subView, hasContents = false, collView, cvCount = 0, closeButton, copyButton, pushButton;
 
 		if (update && envirTabMap[envir].notNil) {
 			view = envirTabMap[envir];
@@ -80,6 +84,15 @@ EnvirWindow {
 		} {
 			view = View();
 		};
+
+		closeButton = (Button()
+			.states_([["—"]])
+			.font_(smallFont)
+			.maxHeight_(16).maxWidth_(16)
+			.action_({
+				this.remove(envir);
+			})
+		);
 
 		copyButton = (Button()
 			.states_([["c"]])
@@ -103,10 +116,23 @@ EnvirWindow {
 				};
 		}));
 
+		pushButton = (Button()
+			.states_([["↑"]])
+			.font_(smallFont)
+			.maxHeight_(16).maxWidth_(16)
+			.action_({
+				"% pushed.".format(envir[\name]).postln;
+				envir.push();
+			})
+		);
+
 		view.layout_(VLayout(
 			[HLayout(
 				[StaticText().font_(bigFont).string_(name), align:\right ],
-				[copyButton, align: \right ]
+				nil,
+				[pushButton, align: \right ],
+				[copyButton, align: \right ],
+				[closeButton, align: \right ],
 			), align: \top],
 			ScrollView().canvas_(
 				subView = View().layout_(VLayout().spacing_([0, 0, 0, 0]))
@@ -115,6 +141,8 @@ EnvirWindow {
 
 		envir.keysValuesDo({
 			|key, val|
+			var hidden = true, items = List(), item;
+
 			if (val.isKindOf(CV)) {
 				cvCount = cvCount + 1;
 				subView.layout.insert(
@@ -125,7 +153,6 @@ EnvirWindow {
 				);
 			} {
 				if (val.isKindOf(Collection)) {
-					var hidden = true, items = List(), item;
 
 					hasContents = false;
 					collView = View().layout_(QVLayout(
@@ -179,5 +206,11 @@ EnvirWindow {
 		).spacing_(0).margins_(0));
 		cv.connect(numBox);
 		^view;
+	}
+}
+
++State {
+	updateEnvirWindow {
+		{ EnvirWindow.update(this.envir) }.defer;
 	}
 }
