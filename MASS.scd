@@ -13,13 +13,16 @@ State(\mass).initActions.add({
 			| i |
 			[
 				Scale.dorian.degreeToFreq(7.rand, base.midicps, 2.rand),
-				Scale.dorian.degreeToFreq([1, 4, 5][i % 3], base.midicps, 2.rand),
-				Scale.dorian.degreeToFreq([4, 7, 8][i % 3], base.midicps, 2),
-				Scale.dorian.degreeToFreq([2, 4, 10][i % 3], base.midicps, 2),
-				Scale.dorian.degreeToFreq([2, 4, 10][i % 3], base.midicps, 3.rand),
+				Scale.dorian.degreeToFreq([1, 4, 6][i % 3], base.midicps, 2.rand),
+				Scale.dorian.degreeToFreq([3, 5, 8][i % 3], base.midicps, 2.rand),
+				Scale.dorian.degreeToFreq([2, 7, 11][i % 3], base.midicps, 2.3.rand.floor),
+				Scale.dorian.degreeToFreq([1, 5, 10][i % 3], base.midicps, 1 + 2.rand.floor),
+				Scale.dorian.degreeToFreq([2, 6, 13][i % 3], base.midicps, 1 + 2.rand),
+				Scale.dorian.degreeToFreq([2, 4, 6, 13][i % 4], base.midicps, 3.rand),
 			]
 		});
 	};
+
 	chordSequenceLow = chordSequence.(30);
 	chordSequenceHigh = chordSequence.(30 + 24);
 
@@ -27,9 +30,9 @@ State(\mass).initActions.add({
 		var pulse, pulse2, phase, noise, noise2, jumps, phases, density,
 		pulseAmt, freqFade, sig, freqs, freqMult, fx, clip, filtSig, volume;
 
-		density = \density.kr(0).lag(1);
-		fx = \fx.kr(0);
-		clip = \clip.kr(1);
+		density = \density.kr(0).lag(5);
+		fx = \fx.kr(0).lag(5);
+		clip = \clip.kr(5);
 
 		phase = LFNoise2.kr(0.1).range(0.06, 0.09);
 		pulse = (Impulse.ar(3) * WhiteNoise.ar(2)) +
@@ -40,7 +43,7 @@ State(\mass).initActions.add({
 			PanAz.ar(
 				voiceCount, pulse,
 				pos: LFNoise2.kr(0.06).range(-1,1),
-				width: LFNoise2.kr(0.07).range(2,3)
+				width: LFNoise2.kr(0.07).range(2 + (density * 10), 2 + (density * 20))
 			)
 		}).sum;
 
@@ -55,7 +58,7 @@ State(\mass).initActions.add({
 		freqs = phases.collect({
 			| p, i |
 			Select.kr(
-				(fx.pow(Rand(1, 5)) * 5) + Rand(-0.25, 0.25), chordSequenceLow[i]
+				(fx.pow(Rand(1, 5)) * 6) + Rand(-0.25, 0.25), chordSequenceLow[i]
 			);
 		});
 
@@ -69,7 +72,7 @@ State(\mass).initActions.add({
 				saw = LFSaw.ar(freq).sum * density.range(0.2, 1.0);
 			} {
 				freq = freq * (density.range(1, 1) + [0.015.rand, 0.01.rand, 0.021.rand]);
-				saw = LFPulse.ar(freq, 0, density.range(0, 0.99)).sum * max(density - 0.5, 0) * 2;
+				saw = LFPulse.ar(freq, 0, density.range(0, 0.99)).sum * max(density - 0.5, 0) * 1;
 			};
 
 			sig = saw;
@@ -104,8 +107,8 @@ State(\mass).initActions.add({
 	SynthDef(\greater, {
 		var pulse, pulse2, phase, noise, noise2, jumps, phases, pulseAmt, freqFade, density, sig, freqs, fx, volume;
 
-		density = \density.kr(0).lag(1);
-		fx = \fx.kr(0);
+		density = \density.kr(0).lag(5);
+		fx = \fx.kr(0).lag(5);
 
 		phase = LFNoise2.kr(0.1).range(0.06, 0.09);
 		pulse = ((Impulse.ar(3) * WhiteNoise.ar(2)) +
@@ -117,7 +120,7 @@ State(\mass).initActions.add({
 			PanAz.ar(
 				voiceCount, pulse,
 				pos: LFNoise2.kr(0.06).range(-1, 1),
-				width: LFNoise2.kr(0.07).range(2, 3)
+				width: LFNoise2.kr(0.07).range(2 + (density * 10), 2 + (density * 20))
 			)
 		}).sum;
 
@@ -132,7 +135,7 @@ State(\mass).initActions.add({
 		freqs = phases.collect({
 			| p, i |
 			Select.kr(
-				(fx.pow(Rand(1, 5)) * 5) + Rand(-0.25, 0.25), chordSequenceHigh[i]
+				(fx.pow(Rand(1, 5)) * 6) + Rand(-0.25, 0.25), chordSequenceHigh[i]
 			);
 		});
 
@@ -160,7 +163,7 @@ State(\mass).initActions.add({
 					[20, 30, 60].choose,
 					0,
 					LFNoise2.kr(0.1).exprange(density.range(0.9, 0.5), 1)
-				).range(\cut.kr(0.6), 1)
+				).range(\cut.kr(0.6).lag(5), 1)
 				, density.range(400, 1300)
 			);
 		});
@@ -210,28 +213,15 @@ State(\mass).initActions.add({
 		~lowDensity = CV(ControlSpec(0, 1, default: 0.0)),
 		~lowFx = CV(ControlSpec(0, 1, default: 0.0)),
 		~lowClip = CV(ControlSpec(0, 1, default: 0.0)),
+		~lowDrop = CV(ControlSpec(0, 1, step: 1, default: 0)),
 
 		~highVolume = CV(ControlSpec(0, 1, default: 0.1)),
 		~highDensity = CV(ControlSpec(0, 1, default: 0.0)),
 		~highFx = CV(ControlSpec(0, 1, default: 0.0)),
 		~highCut = CV(ControlSpec(0, 1, default: 0.0)),
+		~highDrop = CV(ControlSpec(0, 1, step: 1, default: 0)),
 	];
 
-/*	~lowEvent = (
-		\instrument:	\lesser,
-		\type:	 		\cvSynth,
-
-	).cvSynth;*/
-
-	~highEvent = (
-		\instrument: 	\greater,
-		\type: 			\cvSynth,
-
-	).cvSynth;
-
-	~letEvent = (
-		\instrument: \let
-	).cvSynth;
 });
 
 
@@ -245,7 +235,7 @@ State(\mass).startActions.add({
 
 	////////////////////////////////////////////////////////////////////////////////
 	// low
-	~controls[0..3].do({
+	~controls[0..4].do({
 		|cv, i|
 		~knobs.add(
 			~lc.knobs[3 + (i * 4)].cv_(cv)
@@ -262,7 +252,8 @@ State(\mass).startActions.add({
 			\volume: 		~lowVolume,
 			\density: 		~lowDensity,
 			\fx: 			~lowFx,
-			\clip: 			~lowClip
+			\clip: 			~lowClip,
+			\drop:			~lowDrop,
 		]);
 	});
 	~lowTrigger.buttonOffActions.add(e{
@@ -274,7 +265,7 @@ State(\mass).startActions.add({
 
 	////////////////////////////////////////////////////////////////////////////////
 	// high
-	~controls[4..7].do({
+	~controls[5..8].do({
 		|cv, i|
 		~knobs.add(
 			~lc.knobs[2 + (i * 4)].cv_(cv)
@@ -304,7 +295,7 @@ State(\mass).startActions.add({
 	~letTrigger = ~lc.buttons[7].default();
 	~letTrigger.buttonOnActions.add(e{
 		Log(\mass, "let triggered");
-		~letEvent.play;
+		Synth(\let);
 	});
 
 });
