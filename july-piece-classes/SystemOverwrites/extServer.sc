@@ -1,4 +1,20 @@
 +Server {
+	plotTree {|interval=0.5|
+		var onClose, window = Window.new(name.asString + "Node Tree",
+			Rect(128, 64, 400, 400),
+			scroll:true
+		).front;
+		window.view.hasHorizontalScroller_(false).background_(Color.grey(0.9));
+		onClose = this.plotTreeView(interval, window.view, { defer {window.close}; });
+
+		window.recallPosition(\plotTreeView);
+		window.autoRememberPosition(\plotTreeView);
+
+		window.onClose = {
+			onClose.value;
+		};
+	}
+
 	plotTreeView {|interval=0.5, parent, actionIfFail|
 		var resp, done = false;
 		var collectChildren, levels, countSize;
@@ -206,6 +222,7 @@
 				"Server failed to respond to Group:queryTree!".warn;
 			});
 		});
+
 		//action to be executed when enclosing window closes
 		^{
 			updater.stop;
