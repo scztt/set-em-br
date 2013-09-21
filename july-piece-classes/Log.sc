@@ -165,6 +165,20 @@ LogWindow : Singleton {
 		action.value();
 	}
 
+	clear {
+		if (window.notNil) {
+			textView.string = "\n";
+			textViewSize = 1;
+		}
+	}
+
+	close {
+		if (window.notNil) {
+			window.rememberPosition(LogWindow, name);
+			window.close();
+		}
+	}
+
 	gui {
 		if (window.notNil and: { window.isClosed }) { window = nil };
 		if (window.isNil) {
@@ -181,9 +195,14 @@ LogWindow : Singleton {
 
 				window.layout_(VLayout(textView));
 
+				CmdPeriod.add(this);
+
 				this.connect();
 				window.onClose_({
 					this.disconnect();
+					window = nil;
+					textView = nil;
+					CmdPeriod.remove(this);
 					textViewSize = 0;
 				});
 			}.defer();
@@ -191,5 +210,9 @@ LogWindow : Singleton {
 
 		this.update();
 		window.front;
+	}
+
+	cmdPeriod {
+		this.clear();
 	}
 }
