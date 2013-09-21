@@ -12,8 +12,17 @@ SlewCV {
 	}
 
 	*new {
-		arg cv, target, dur, updateRate;
+		arg cv, target, dur = 5, updateRate = 15;
 		^super.newCopyArgs(cv, target, dur, updateRate).init();
+	}
+
+	*all {
+		| slews, dur = 5, updateRate = 15 |
+		^slews.keysValuesDo({
+			|key, val|
+			key = key.isKindOf(Symbol).if({ currentEnvironment[key] }, { key });
+			SlewCV(key, val, dur, updateRate).play;
+		})
 	}
 
 	init {
