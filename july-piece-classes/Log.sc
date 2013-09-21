@@ -5,7 +5,7 @@ Log : Singleton {
 	*initClass {
 		defaultFormatter = {
 			|item, log|
-			"[%]".format(log.name.asString().capitalize()).padRight(12) ++ item[\string];
+			"[%]".format(log.name.asString().toUpper()).padRight(12) ++ item[\string];
 		}
 	}
 
