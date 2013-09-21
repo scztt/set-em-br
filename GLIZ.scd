@@ -4,6 +4,7 @@
 ///////////////////////////////////////////////////////////////
 // SynthDef
 State(\gliz).clear();
+State(\gliz).autoEnvirWindow = true;
 
 State(\gliz).initActions.add({
 
@@ -303,9 +304,8 @@ State(\gliz).initActions.add({
 		\dur, Prand([12, 12, 16, 24], inf),
 		\amp, 0.1,
 		\octave, 7,
-		.
 		\degree, [6, 6.76]
-	));.
+	));
 
 	Pdef(\main);
 
@@ -314,8 +314,6 @@ State(\gliz).initActions.add({
 	// Controls
 	~buttons = ~lc.buttons[5..12];
 	~buttons.do({ |b| b.default().toggle_(true) });
-
-	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
 
 
@@ -352,9 +350,6 @@ State(\gliz).startActions.add({
 	Pdef(\main, Pdef(\durpat2) <> Pdef(\slow) <> Pdef(\b_notes1) <> Pdef(\b_base)).play;
 
 	Pdef(\high, Pdef(\high1) <> Pdef(\b_base)).play;
-
-
-	{ EnvirWindow.update(currentEnvironment) }.defer;
 });
 
 State(\gliz).stopActions.add({
@@ -370,9 +365,5 @@ State(\gliz).stopActions.add({
 });
 
 State(\gliz).doInit()
-//
-// State(\gliz).push
-//
-// Pdef(\main, ~patterns[1]).play
 
 
