@@ -132,7 +132,7 @@ State(\peng).initActions.add({
 		sig = sig * 0.2;
 
 		delaySpike = LagUD.ar(Trig1.ar(LFNoise2.ar(6).range(0, 1) - delayAmt, 0.1), 0.01, 1.7);
-		delayTimes = [0, 1, 2, 3, 4, 5] * (4.02 / bellFreq);
+		delayTimes = [0.497, 1, 2, 3, 4, 5] * (1 / bellFreq);
 		delayAmts = [delaySpike.range(1, 0.15)] ++ (delaySpike.range(0, 0.65) ! 5);
 
 		sig = sig + (0.4 * [
@@ -152,8 +152,7 @@ State(\peng).initActions.add({
 
 		noiseAmt = noiseAmt * LFNoise2.kr(0.6).range(0.95, 1.05);
 
-		imp = Impulse.ar(rate, LFNoise2.kr(8).pow(8) * 0.3) + (double * Impulse.ar(rate));
-		imp =
+		imp = Impulse.ar(rate, LFNoise2.kr(8).pow(8) * 0.15) + (double * Impulse.ar(rate));
 
 		imp = Decay.ar(imp, LFNoise2.kr(1).range(decay * 0.2, decay));
 		imp = RLPF.ar(imp, freq, 1000 / freq);
@@ -176,7 +175,7 @@ State(\peng).initActions.add({
 			)
 		));
 
-		sig = sig + HPF.ar(CombC.ar(sig * LFNoise2.kr(0.1).pow(4), 3, 2.1, 12), 400);
+		sig = sig + HPF.ar(CombC.ar(sig * LFNoise2.kr(0.1).pow(4), 3, 2.1, 3), 700);
 		sig = sig * EnvGen.kr(Env([0, 1, 1, 0], [0.1, 1, 3], releaseNode:2), gate:gate, doneAction:2);
 
 		Out.ar(out, sig * [1, 1] * amp.lag(0.5));
@@ -277,7 +276,11 @@ State(\peng).initActions.add({
 		Pdef(\noteMain) <> Pdef(\pengGroup) <> Pdef(\peng),
 	];
 
+	/////////////////////////////
+	// States
 	~states = [
+
+		// 1 ////////////////////////////
 		e({
 			SlewCV.all([
 				~driverFreq, 20,
@@ -285,7 +288,46 @@ State(\peng).initActions.add({
 				~driverDouble, 0,
 				~driverNoiseAmt, 0.43307086614173
 			], 6);
-		})
+			Pdef(\mainPat).stop();
+		}),
+
+		// 2 ////////////////////////////
+		e({
+			SlewCV.all([
+				~driverFreq, 191.80666756585,
+				~driverDecay, 0.23635283371651,
+				~driverDouble, 0,
+				~driverNoiseAmt, 0.5511811023622,
+			], 0.3);
+			Pdef(\mainPat).stop();
+		}),
+
+		// 2 ////////////////////////////
+		e({
+			SlewCV.all([
+				~driverFreq, 647.95282391713,
+				~driverDecay, 0.076747461680536,
+				~driverDouble, 0.47244094488189,
+				~driverNoiseAmt, 0.15748031496063,
+			], 0.6);
+			Pdef(\mainPat).stop();
+		}),
+
+		// 4 ////////////////////////////
+		e({
+			SlewCV.all([
+				~driverFreq, 54.362897428085,
+				~driverDecay, 0.21234268741174,
+				~driverDouble, 0,
+				~driverNoiseAmt, 0.43307086614173,
+				~pengDecayAmt, 0.56771653543307,
+				~pengLPF, 18.465139693047,
+				~pengDelayAmt, 0,
+				~pengNoiseAmt, 0.57503937007874,
+				~pengNoiseLPF, 15.451703926941,
+			], 6);
+			Pdef(\mainPat, Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
 	];
 
 	Pdef(\mainPat).clear();
@@ -332,7 +374,7 @@ State(\peng).startActions.add({
 	});
 
 	~resources.add(
-		~patternGroup = CVModalGroup(*~patternButtons)
+		~patternGroup = CVModalGroup(*~patternButtons).allowOff_(false)
 	);
 
 	~knobs = List().addAll(
