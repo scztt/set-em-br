@@ -1,18 +1,31 @@
 Singleton {
 	classvar <>all, <>know=false, creatingNew=false;
 
-	var logString, <postWindow, <>postActions;
+	var <>name, logString, <postWindow, <>postActions;
 
-	*initClass { all = IdentityDictionary(); }
+	*initClass {
+		all = IdentityDictionary();
+	}
 
 	*new {
 		arg name = \default ...settings;
-		^all.atFail(name, {
-			var newSingleton = this.createNew().init(name);
-			if (settings.notNil, { newSingleton.set(*settings) });
-			all[name] = newSingleton;
+		var sing, classAll;
+
+		classAll = all.atFail(this, {
+			all[this] = IdentityDictionary();
+			all[this];
+		});
+
+		sing = classAll.atFail(name, {
+			var newSingleton = this.createNew();
+			newSingleton.init(name);
+			newSingleton.name = name;
+			classAll[name] = newSingleton;
 			newSingleton;
 		});
+
+		if (settings.notNil && settings.notEmpty) { sing.set(*settings) };
+		^sing;
 	}
 
 	*createNew {
