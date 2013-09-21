@@ -44,8 +44,10 @@ EnvirWindow {
 			envirs[envir] = name;
 
 			if (window.notNil) {
-				envirTabMap[envir] = this.buildTabFor(envir, name);
-				//window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size - 1));
+				{
+					envirTabMap[envir] = this.buildTabFor(envir, name);
+					//window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size - 1));
+				}.defer();
 			}
 		}
 	}
@@ -57,9 +59,11 @@ EnvirWindow {
 		envirs[envir] = nil;
 
 		if (window.notNil) {
-			tab.remove();
-			envirTabMap[envir] = nil;
-			//window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size + 1));
+			{
+				tab.remove();
+				envirTabMap[envir] = nil;
+				//window.bounds = window.bounds.width_(window.bounds.width * envirTabMap.size / (envirTabMap.size + 1));
+			}.defer;
 		}
 	}
 
@@ -68,7 +72,7 @@ EnvirWindow {
 		this.add(envir);
 
 		if (window.notNil) {
-			this.buildTabFor(envir, envirs[envir], true);
+			{ this.buildTabFor(envir, envirs[envir], true) }.defer;
 		}
 	}
 
