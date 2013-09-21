@@ -22,8 +22,8 @@ MultiStateManager : Singleton {
 
 State : Singleton {
 	var <initialized=false, <running = false, <>requireServer = true;
-	var <>server, <initActions, <startActions, <stopActions, <freeActions, <resources;
-	var <envir, <name;
+	var <>server, <initActions, <startActions, <stopActions, <freeActions, <resources, <autoEnvirWindow = false;
+	var <envir, <name, envirWindowController;
 
 	init {
 		arg inName;
@@ -48,13 +48,13 @@ State : Singleton {
 
 	onError {
 		|e|
-		"%: Error running action %.".format(e, this.name()).error;
+		Log(\error, e.errorString);
 		e.reportError;
 	}
 
 	*add {
 		|...args|
-		args.postln;
+		args;
 	}
 
 	at {
@@ -96,7 +96,24 @@ State : Singleton {
 
 	log {
 		arg str;
-		"%: %".format(envir[\name].asString.toUpper, str).postln;
+		Log(name, str);
+	}
+
+	autoEnvirWindow_{
+		| auto |
+		if (autoEnvirWindow != auto) {
+			autoEnvirWindow = auto;
+
+			envirWindowController.notNil.if({
+				envirWindowController.remove();
+			});
+
+			if (autoEnvirWindow) {
+				envirWindowController = SimpleController(this);
+				envirWindowController.put(\initialized, { EnvirWindow.update(this.envir) });
+				envirWindowController.put(\running, { EnvirWindow.update(this.envir) });
+			}
+		}
 	}
 
 	doInit {
