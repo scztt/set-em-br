@@ -1,17 +1,46 @@
-///////////////////////////////////////////////////////////////
-// Bell state
+
+
 
 ///////////////////////////////////////////////////////////////
 // SynthDef
 State(\gliz).clear();
 State(\gliz).autoEnvirWindow = true;
 
-State(\gliz).initActions.add({
 
-	~sf = Buffer.read(s, "/Users/fsc/Documents/_sounds/lummi-2010/4CH/SR008F.wav");
+State(\gliz).initActions.add({
+	Require("GLIZ-samples", always: true);
+
+	~resources.add(
+		~sf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/whidbey-pond.wav"));
+
+	~bulkSynth = {
+		arg in, out=0, amp=1, freq=60, width=0.2, thresh=0.5, drown=0.2, pitchAmt=0.5, rev=20;
+		var monoIn, sig, inAmp, ampThresh, amount, freqs, widths, maxAmp, localIn;
+		freqs = ([ 1, 2, 3, 4, 5, 0.5, 0.333, 0.125, 3.333, 6.666, 4.3452 ]*freq).wrap( 0, 19000 - width );
+		//monoIn = ~in.ar(1) ;
+		monoIn = in;
+		inAmp = Amplitude.kr( BPF.ar( monoIn, freqs, 1/freqs) );
+		ampThresh = Slew.kr( DelayL.kr( inAmp, 0.1, 0.1), 10000, thresh );
+		amount = drown*Slew.kr( inAmp>ampThresh, 50, 20 );
+		sig = Mix.new(
+			CombC.ar(
+				BPF.ar( monoIn, freqs, (width+( (freq-width)*(drown-amount) ) )/freqs ),
+				2, LFNoise2.kr( Lag.kr(inAmp*4, 0.2), 15.0, 40.5 ).reciprocal, 0.5 ) );
+		localIn = LocalIn.ar(1);
+		in = CombC.ar( monoIn +
+			FreqShift.ar( LPF.ar(localIn, freq), 0, 2 ) +
+				FreqShift.ar( HPF.ar(localIn, freq), 0, -1 ),
+			0.1, freqs.reciprocal, pitchAmt);
+		in = LPF.ar( in, freqs*4 );
+		maxAmp = (Slew.kr( Amplitude.kr( sig*in, 0.01 ), 90000, 2.3 ).max(0.001));
+		LocalOut.ar( Mix.new( (sig*in).tanh*0.2) );
+		Pan2.ar(
+			FreeVerb.ar( Mix.new( amp*sig*in*(maxAmp.reciprocal)), 0.4, Lag.kr( inAmp*rev, 0.3 ) ),
+			LFNoise2.ar( LFNoise2.ar( 1, 1, 1 ))) ;
+	};
 
 	SynthDef(\lichenSurface, {
-		arg in, out, t_dust = 0;
+		arg in, out, t_dust = 0, bulk = 0, amp = 0.01;
 		var sig, inSig, inSigLow, inFeed, noise, noiseMod, dust, dustEnv;
 
 		dustEnv = EnvGen.kr(Env.perc(0.01, 12), gate: t_dust);
@@ -23,7 +52,7 @@ State(\gliz).initActions.add({
 			sin([1.2, 3, 8, 9] * noiseMod * pi)
 		).sum * 0.2;
 
-		inFeed = LocalIn.ar(2) * 0.00001;
+		inFeed = LocalIn.ar(4) * 0.01;
 		inFeed = APF.ar(inFeed, 25, 0.99);
 		inFeed = LPF.ar(inFeed, 5000);
 		inFeed = BRF.ar(inFeed, 3500);
@@ -34,7 +63,7 @@ State(\gliz).initActions.add({
 		inSigLow = LPF.ar(inSig, 100);
 
 		sig = GVerb.ar(inSig, 20.1, 8);
-		sig = HPF.ar(sig, 1000);
+		sig = HPF.ar(sig, 6000);
 
 		noise = (WhiteNoise.ar(0.2) + (BrownNoise.ar() * BrownNoise.ar()) * 0.3) * noiseMod.range(0.75, 1.0);
 		noise = noise + dust;
@@ -42,13 +71,16 @@ State(\gliz).initActions.add({
 
 		noise = HPF.ar(noise, 2000) * (1 + sig);
 		noise = noise + HPF.ar(WhiteNoise.ar(0.005), 10000);
-		noise = PlayBuf.ar(2, ~sf.bufnum, 1, startPos: 48000 * 30, loop: 1)  * 5000;
-		sig = sig + (noise);
-		sig = sig + (0.3 * HardCompress.ar(sig, 0.1, 0.05));
-
-		LocalOut.ar(sig * 0.6);
-		Out.ar(out, (sig * 0.0001) + inSig + inSigLow);
+		noise = PlayBuf.ar(4, ~sf.bufnum, 1, startPos: 0, loop: 1)  * 5000;
+		noise = HPF.ar(noise, 12000);
+		sig = (noise);
+			sig = sig + (0.1 * HardCompress.ar(sig, 0.1, 0.05));
+			sig = XFade2.ar(sig, ~bulkSynth.value(sig), bulk * 2 - 1);
+		sig = sig * 0.1;
+		LocalOut.ar(sig);
+		Out.ar(out, (sig + inSig + inSigLow) * amp);
 	}).add;
+
 
 	~cymbal = {
 		arg drive;
@@ -74,6 +106,7 @@ State(\gliz).initActions.add({
 	};
 
 	~taylorTones = [292.8, 586.1, 693.0, 882.1, 1171.4, 1560.4, 1764.2, 1949.7,  2158.6, 2441.4, /*2619.2, 3184.6*/ ] / 1171.4;
+
 	SynthDef(\lichen1, {
 		arg out = 0, freq = 100, combDelay = 0.2, combDecay = 1, klankDecay = 1, pan = 0,
 		impulseFreq = 0, impulseDecay = 0.5, ring = 0, amp=0, impulseFilt=50, bend=0.3
@@ -188,6 +221,7 @@ State(\gliz).initActions.add({
 		~impulseFreqCV = CV(ControlSpec(0.001, 68)),
 		~impulseFiltCV = CV(ControlSpec(50, 4000, \exp, default: 500)),
 		~bendCV = CV(ControlSpec(0, 1, default: 0.2)),
+		~bulk = CV(ControlSpec(0, 1, default: 0.0)),
 	];
 	~bellBus = Bus.audio(s, 2);
 
@@ -196,7 +230,7 @@ State(\gliz).initActions.add({
 	Pdef(\b_base, Pbind(
 		\instrument, \glassHit,
 		\glassName, Prand([\B], inf),
-		\glass, Pfunc({ |e| e.postln; e.putAll(g[e[\glassName]].choose()) }),
+		\glass, Pfunc({ |e| e.postln; e.putAll(~glassHits[e[\glassName]].choose()) }),
 		\buffer, Pfunc({ |e| e[\buffer].bufnum }),
 		\dur, Pseq([1], inf),
 		\amp, Prand([0.03, 0.02, 0.021, 0.01], inf),
@@ -336,9 +370,10 @@ State(\gliz).startActions.add({
 		})
 	});
 
-	~surfaceSynth = Synth(\lichenSurface, [
+	~surfaceSynth = Synth.controls(\lichenSurface, [
 		\out, 0,
-		\in, ~bellBus
+		\in, ~bellBus.index,
+		\bulk, ~bulk
 	], addAction: \addAfter);
 
 	~controls.do({
@@ -347,9 +382,9 @@ State(\gliz).startActions.add({
 	});
 
 	Pdef(\main).stop;
-	Pdef(\main, Pdef(\durpat2) <> Pdef(\slow) <> Pdef(\b_notes1) <> Pdef(\b_base)).play;
+	Pdef(\main, Pdef(\durpat2) <> Pdef(\slow) <> Pdef(\b_notes1) <> Pdef(\b_base)).stop;
 
-	Pdef(\high, Pdef(\high1) <> Pdef(\b_base)).play;
+	Pdef(\high, Pdef(\high1) <> Pdef(\b_base)).stop;
 });
 
 State(\gliz).stopActions.add({
@@ -364,6 +399,5 @@ State(\gliz).stopActions.add({
 	~surfaceSynth.free;
 });
 
-State(\gliz).doInit()
-
+State(\gliz).doInit();
 
