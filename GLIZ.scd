@@ -6,9 +6,11 @@
 State(\gliz).clear();
 State(\gliz).autoEnvirWindow = true;
 
+Require("GLIZ-samples", always: true);
+Require("GLIZ-hum-patterns", always: true);
+Require("GLIZ-hit-patterns", always: true);
 
 State(\gliz).initActions.add({
-	Require("GLIZ-samples", always: true);
 
 	~resources.add(
 		~sf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/whidbey-pond.wav"));
