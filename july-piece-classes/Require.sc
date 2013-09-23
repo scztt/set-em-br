@@ -49,14 +49,18 @@ Require {
 		};
 
 		if (paths.isEmpty) {
-			Exception("No files found for Require(%)!".format(identifier).warn);
+			Exception("No files found for Require(%)! (executing from: %)".format(identifier, thisProcess.nowExecutingPath).warn);
+
 		} {
 			var results = paths.collect({
 				|path|
-				var result;
+				var result, oldPath;
 
 				absPath = PathName(path).asAbsolutePath().asSymbol();
 				if (requireTable[absPath].isNil || always) {
+					oldPath = thisProcess.nowExecutingPath;
+					thisProcess.nowExecutingPath = absPath;
+
 					try {
 						result = absPath.asString.load();
 					} {
@@ -64,6 +68,8 @@ Require {
 						"Require of file % failed!".format(absPath).error;
 						e.throw();
 					};
+
+					thisProcess.nowExecutingPath = oldPath;
 
 					requireTable[absPath] = result;
 
