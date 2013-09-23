@@ -78,7 +78,9 @@ State : Singleton {
 		resources.clear(8);
 
 		envir.clear();
+
 		envir[\name] = name;
+		envir[\resources] = resources;
 	}
 
 	push {
@@ -181,8 +183,6 @@ State : Singleton {
 			running = false;
 			envir.use({ this.changed(\running, false) });
 			this.log("stopped");
-		} {
-			"State not running.".warn;
 		};
 	}
 
@@ -208,8 +208,10 @@ State : Singleton {
 
 			envir[\resources].do({
 				arg resource;
+				"freeing %".format(resource).postln;
 				this.freeResource(resource);
 			});
+			envir[\resources].clear(8);
 
 			envir.use({ this.changed(\initialized, false) });
 			initialized = false;
@@ -241,15 +243,15 @@ State : Singleton {
 
 		case
 		{ resource.isKindOf(Buffer) } {
-			resource.free;
+			resource.free();
 		}
 
 		{ resource.isKindOf(Bus) } {
-			resource.free;
+			resource.free();
 		}
 
 		{ resource.isKindOf(Node) } {
-			resource.free;
+			resource.free();
 		}
 
 		{ resource.isKindOf(CV) } {
@@ -267,6 +269,8 @@ State : Singleton {
 		{ resource.isKindOf(Collection) } {
 			resource.do(this.freeResource(_));
 		}
+
+		{ true } { "Don't know how to free: %".format(resource).postln };
 	}
 
 	printOn {
