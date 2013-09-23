@@ -9,25 +9,26 @@ Log(\gliz, "Loading gliz samples.");
 );
 
 ~humNote = (
-	HumI_53: 439,
-	HumH_52: 721,
-	HumG_51: 930,
-	HumF_50: 751,
-	HumE1_49: 965,
-	HumD1_48: 962,
-	HumC1_47: 960,
-	HumB1_46: 1081,
 	HumA2_45: 428,
 	HumA1_44: 428,
+	HumI_53: 439,
+	HumH_52: 721,
+	HumF_50: 751,
+	HumG_51: 930,
+	HumD1_48: 962,
+	HumC1_47: 960,
+	HumE1_49: 965,
+	HumB1_46: 1081,
 );
 
+~glassSort = {|a, b| a[\baseFreq] < b[\baseFreq]};
 ~glassHits = (
 	A: List(),
 	B: List(),
 	D: List(),
 	E: List(),
 );
-~glassHums = List();
+~glassHums = SortedList(10, ~glassSort);
 
 ~highLongMono = (
 	\baseFreq: 964,
@@ -46,22 +47,25 @@ Log(\gliz, "Loading gliz samples.");
 	var sound, name = path.fileName;
 
 	if (path.extension == "wav") {
-		if ("[A-Z]_.*".matchRegexp(name)) {
-
+		path.postln;
+		if ("^[A-Z]_.*".matchRegexp(name)) {
 			sound = (
 				path: path.asAbsolutePath(),
 				baseFreq: ~glassNote[name[0].asSymbol]
 			);
+			// "Hit: %".format(sound[\path]).postln;
 			~glassHits[name[0].asSymbol].add(sound);
+
 		} {
 			if (name[0..2] == "Hum") {
 				sound = (
 					path: path.asAbsolutePath,
 					baseFreq: ~humNote[path.fileNameWithoutExtension.asSymbol]
 				);
+				// "Hum: %".format(sound[\path]).postln;
 				~glassHums.add(sound);
 			} {
-				//"Dunno what to do with %".format(name).postln;
+				// "Dunno what to do with %".format(name).postln;
 			}
 		}
 	}
@@ -101,27 +105,29 @@ SynthDef(\glassHit, {
 }).add;
 
 SynthDef(\glassHum, {
-	| out = 0, amp, buffer, freq = 440, baseFreq = 440, rotation = 0, gate = 1, dur 1|
+	| out = 0, amp, buffer, freq = 440, baseFreq = 440, rotation = 0, gate = 1, dur 1, bend = 0|
 	var rate, env, sigA, sigB, sigMix, bufferDur, bufferFrames, phasorA, phasorB, relPos;
-	rate = freq / baseFreq;
+	rate = (freq  + bend.lag(3)) / baseFreq;
 	bufferDur = BufDur.kr(buffer);
 	bufferFrames = BufFrames.kr(buffer);
 
-	phasorA = Phasor.ar(1, BufRateScale.kr(buffer) * rate, 0, bufferFrames);
-	phasorB = (phasorA + (bufferFrames / 2).floor) % bufferFrames;
+//	phasorA = (Phasor.ar(1, BufRateScale.ir(buffer) * rate, 0, bufferFrames));
+	phasorA = (Phasor.ar(1, BufRateScale.kr(buffer) * rate, 0, bufferFrames) + Rand(0, 48000 * 10)) % bufferFrames;
+	phasorB = (phasorA + (bufferFrames / 2)) % bufferFrames;
 	relPos = phasorA / bufferFrames;
 
-	sigA = BufRd.ar(3, buffer, phasorA);
-	sigB = BufRd.ar(3, buffer, phasorB);
+	sigA = BufRd.ar(3, buffer, phasorA, interpolation: 4);
+	sigB = BufRd.ar(3, buffer, phasorB, interpolation: 4);
 
-	sigMix = IEnvGen.kr(Env([0, 1, 1, 0, 0], [0.05, 0.45, 0.05, 0.45]), relPos;
+	sigMix = IEnvGen.kr(Env([0, 1, 1, 0, 0], [0.05, 0.45, 0.05, 0.45]), relPos);
 	sigMix = XFade2.ar(sigB, sigA, sigMix.linlin(0, 1, -1, 1));
 	sigMix = Splay.ar(sigMix) * amp;
 	sigMix = Rotate2.ar(sigMix[0], sigMix[1], rotation);
-	sigMix = sigMix * EnvGen.kr(Env([0, 1, 1, 0], [1, 1, 3], releaseNode: 2), gate: gate, doneAction: 2);
+	sigMix = sigMix * EnvGen.kr(Env([0, 1, 1, 0], [1, 1, 10], releaseNode: 2), gate: gate, doneAction: 2);
+	sigMix = LPF.ar(sigMix, 20000 * rate.min(1));
 
 	Out.ar(out, sigMix);
-}).add.send(s);
+}).add;
 
 Pdef(\glassBase, Pbind(
 	\instrument, \glassHit,
@@ -135,20 +141,209 @@ Pdef(\glassBase, Pbind(
 	\rotation, Pseg(Pseq([-0.1, 0.1, -0.1], inf), Pseq([20] , inf), \sin, inf)
 ));
 
+~hum_group = Group();
 
 Pdef(\humBase, Pbind(
 	\instrument, \glassHum,
-	\dur, Pseq([10], inf),
-	\hum, Ptrace( Prand((0..State(\gliz)[\glassHums].size - 1), inf) ),
-	\glass, Pfunc({ |e| e.putAll(State(\gliz)[\glassHums][e[\hum]]) }),
-	\buffer, Pfunc({ |e| e[\buffer].bufnum }),
-	\amp, 1,
-	\octave, Prand([3, 4, 5], inf),
-	\degree, Pseq([ [1, 3], [2, 7], [2, 9], [-3, 2] ], inf),
-	\rotation, Pfunc({ rrand(-1, 1) })
+	\dur, Pseq([6], inf),
+	\hum, 3,
+	\legato, 1,
+	\amp, 0.7,
+	\octave, 8,
+	\degree, 0,
+	\rotation, 0,
+	\group, ~hum_group.nodeID,
+	\scale, Scale.chromatic
 ));
 
-Pdef(\humBase).stop;
+Pdef(\humBuf, Pbind(
+	\buffer, Pfunc({
+		|e|
+		if (e[\hum].isCollection) {
+			e[\hum].collect({ |i| State(\gliz)[\glassHums][i][\buffer].bufnum })
+		} {
+			State(\gliz)[\glassHums][e[\hum]][\buffer].bufnum
+		};
+	}),
+	\baseFreq, Pfunc({
+		|e|
+		if (e[\hum].isCollection) {
+			e[\hum].collect({ |i| State(\gliz)[\glassHums][i][\baseFreq] });
+		} {
+			State(\gliz)[\glassHums][e[\hum]][\baseFreq];
+		};
+	})
+));
+
+Pdef(\humA, Pbind(
+	\hum, Ptrace(Pseq([ [9, 9]. ], 1)),
+	\degree, Pseq([ [1, 2] ], 1),
+));
+
+(
+Pdef(\test, Pbind(
+	\instrument, \default,
+	\scale, Scale.chromatic,
+	\octave, 7,
+	\legato, 2,
+	\degree, Pseq([-32, -25, -25, -18, -18], inf),
+	\dur, 0.1
+)).stop;
+)
+
+Pseq([
+	[1, 2]
+	[-1, 2]
+	[-4, -1, 2]
+	[-6, -3, 1]
+	[-8, -6, -3, 1]
+	[-9, -7, -4, 0]
+	[-11, -9, -7, -4, 0, 5]
+	[-11, -11, -10, -5, -1, 4]
+	[-13, -13, -11, -6, 4, 6]
+	[-23, -13, -13, -11, -4, 3, 3, 8]
+	[-24, -14, -14, -11, -4, 3, 3, 5]
+	[-29, -24, -20, -12, -12]
+	[-29, -25, -20, -12, -13]
+	[-29, -25, -21, -16, -13]
+	[-32, -25, -21, -16, -13]
+	[-32, -25, -22, -18, -17]
+	[-32, -25, -25, -18, -18]
+])
+
+~hum_group.freeAll
+Pdef(\glassMain, Pdef(\humBuf) <> Pdef(\humA) <> Pdef(\humBase)).play;
+
+(
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  0,   1,   1,   1,   0 ] ], inf),
+	\degree, Pseq([ [-32, -25, -25, -18, -18 ] +.x [0, -12] ], inf),
+));
+)
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [ 9, 9 ] ], inf),
+	\degree, Pseq([ [ 1, 2 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [ 8, 9 ] ], inf),
+	\degree, Pseq([ [-1, 2] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [ 9,  8, 9 ] ], inf),
+	\degree, Pseq([ [-3, -1, 2 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [ 7,  8, 9 ] ], inf),
+	\degree, Pseq([ [-6, -3, 1 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [ 7,  7,  8, 9 ] ], inf),
+	\degree, Pseq([ [-8, -6, -3, 1 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  6,  7,  6, 8 ] ], inf),
+	\degree, Pseq([ [-10, -6, -3, 0 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  2,  6,   7,   6,  7, 8, 9 ] ], inf),
+	\degree, Pseq([ [-11, -9,  -7,  -4,  0, 5, 5 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  5,   6,  7,   5,  6, 8, 9 ] ], inf),
+	\degree, Pseq([ [-11, -11, -9,  -4, -2, 5, 5 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  3,   7,   5,  5,  3, 6, 6 ] ], inf),
+	\degree, Pseq([ [-13, -13, -11, -7,  3, 6, 6 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  3,   7,   6,   6,  3, 6, 5 ] ], inf),
+	\degree, Pseq([ [-23, -13, -13, -11, -4, 3, 8 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  2,   3,   5,   5,  3, 5, 6, 5 ] ], inf),
+	\degree, Pseq([ [-24, -14, -14, -11, -4, 3, 3, 8 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  1,   3,   5,   3,   6 ] ], inf),
+	\degree, Pseq([ [-29, -24, -20, -12, -12 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  1,   3,   5,   3,   5 ] ], inf),
+	\degree, Pseq([ [-29, -24, -20, -12, -13 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  5,   2,   3,   3,   5 ] ], inf),
+	\degree, Pseq([ [-29, -25, -20, -12, -13 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  6,   1,   3,   2,   5 ] ], inf),
+	\degree, Pseq([ [-29, -25, -21, -16, -13 ]  ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  5,   0,   3,   1,   5 ] ], inf),
+	\degree, Pseq([ [-32, -25, -21, -16, -13 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  2,   0,   1,   0,   3 ] ], inf),
+	\degree, Pseq([ [ -32, -25, -22, -18, -17] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  1,   0,   1,   0,   2 ] ], inf),
+	\degree, Pseq([ [-32, -25, -25, -18, -18 ] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  0,   0,   0,   0,   0 ] ], inf),
+	\degree, Pseq([ [-32, -25, -25, -18, -18 ] +.x [0, -12] ], inf),
+));
+
+Pdef(\humA, Pbind(
+	\octave, 8,
+	\hum, Pseq(   [ [  0,   1,   1,   1,   0 ] ], inf),
+	\degree, Pseq([ [-32, -32, -25, -25, -25 ] +.x [0, -12, -24] ], inf),
+));
+
+
+~hum_group.set(\bend, 0)
 
 Pdef(\glassDurVary, Pbind(
 	\dur, Pfunc({ |e| e[\dur] * rrand(0.95, 1.05) })
