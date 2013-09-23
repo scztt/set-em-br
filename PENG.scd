@@ -187,6 +187,7 @@ State(\peng).initActions.add({
 	~resources = SparseArray();
 	~resources.addAll([
 		~lc = LCDevice(),
+		~lc.knobs.do(_.ringStyle_(\fill));
 		~bus = Bus.audio(s, 2),
 		~cymbalBus = Bus.audio(s, 2),
 		~pengGroup = Group(s),
@@ -326,7 +327,7 @@ State(\peng).initActions.add({
 				~pengNoiseAmt, 0.57503937007874,
 				~pengNoiseLPF, 15.451703926941,
 			], 6);
-			Pdef(\mainPat, Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+			Pdef(\mainPat, Pdef(\noteMain) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
 		}),
 	];
 
