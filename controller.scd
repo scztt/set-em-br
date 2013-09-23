@@ -3,6 +3,7 @@
 Log.logErrors();
 
 LogWindow(\perf, [\gliz, \peng, \mass, \control, \error]).gui();
+LogWindow(\perf).clear;
 
 EnvirWindow.show();
 
@@ -11,9 +12,9 @@ Require("GLIZ", always: true);
 Require("PENG", always: true);
 Require("MASS", always: true);
 
+State(\control).clear();
+State(\control).initActions.add({
 
-State(\control).use({
-	~lc.postln;
 	if (~lc.notNil) { ~lc.disconnect.free };
 	~lc = LCDevice();
 	~currentState = nil;
@@ -25,7 +26,7 @@ State(\control).use({
 
 	~lc.buttons[0].buttonOnActions.add(e{
 		Log(\peng, "connected");
-		State(\peng)[\lc].connect();
+		State(\peng)[\lcb].connect();
 		~currentState = State(\peng);
 	});
 
@@ -60,5 +61,7 @@ State(\control).use({
 
 	~lc.connect;
 
-	Log(\control, "READY");
+	// Log(\control, "READY");
 });
+
+State(\control).doInit();
