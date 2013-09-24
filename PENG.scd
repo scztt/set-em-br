@@ -176,11 +176,11 @@ State(\peng).initActions.add({
 		sig = sig + (imp * (
 			LPF.ar(
 				WhiteNoise.ar(IEnvGen.kr(Env([-30, -29, -15, -15], [0.25, 0.25, 0.5]), noiseAmt).dbamp),
-				noiseAmt.forceRange(5, 300)
+				noiseAmt.forceRange(5, 100)
 			)
 			+ HPF.ar(
-				WhiteNoise.ar(IEnvGen.kr(Env([-100, -70, -50], [0.5, 0.5]), noiseAmt).dbamp),
-				noiseAmt.forceRange(800, 9000)
+				WhiteNoise.ar(IEnvGen.kr(Env([-100, -70, -40], [0.5, 0.5]), noiseAmt).dbamp),
+				noiseAmt.forceRange(3000, 12000)
 			)
 		));
 
