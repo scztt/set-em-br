@@ -10,7 +10,7 @@ Require("GLIZ-samples", always: true);
 Require("GLIZ-hum-patterns", always: true);
 Require("GLIZ-hit-patterns", always: true);
 
-State(\gliz).initActions.add({
+State(\gliz).initActions.put(0, {
 
 	~resources.add(
 		~sf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/whidbey-pond.wav"));
@@ -42,7 +42,7 @@ State(\gliz).initActions.add({
 	};
 
 	SynthDef(\lichenSurface, {
-		arg in, out, t_dust = 0, bulk = 0, amp = 0.01;
+		arg in, out, t_dust = 0, bulk = 0, amp = 1;
 		var sig, inSig, inSigLow, inFeed, noise, noiseMod, dust, dustEnv;
 
 		dustEnv = EnvGen.kr(Env.perc(0.01, 12), gate: t_dust);
@@ -80,7 +80,7 @@ State(\gliz).initActions.add({
 			sig = XFade2.ar(sig, ~bulkSynth.value(sig), bulk * 2 - 1);
 		sig = sig * 0.1;
 		LocalOut.ar(sig);
-		Out.ar(out, (sig + inSig + inSigLow) * amp);
+		Out.ar(out, (sig + inSig + inSigLow) * amp * 0.01);
 	}).add;
 
 
@@ -198,6 +198,7 @@ State(\gliz).initActions.add({
 	~lc.notNil.if({ ~lc.clear });
 	~lc = LCDevice();
 	~lc.knobs.do(_.ringStyle_(\fill));
+	~resources.add(~lc);
 
 	// Play button
 	~playButton = ~lc.buttons[4].default;
@@ -210,141 +211,15 @@ State(\gliz).initActions.add({
 		State(\gliz).doStop();
 	});
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Controls
-	~notes = 8.collect(Scale.partch_o3().degreeToFreq(_, 96.midicps, 0));
-	~notes = 8.collect(Scale.bartok().degreeToFreq(_, 90.midicps, 0));
-
-	~bellSynth = \lichen1;
-
 	~controls = [
-		~harmRingCV = CV(ControlSpec(-10, 10)),
-		~harmAmpCV = CV(ControlSpec(-10, 10)),
-		~impulseFreqCV = CV(ControlSpec(0.001, 68)),
-		~impulseFiltCV = CV(ControlSpec(50, 4000, \exp, default: 500)),
-		~bendCV = CV(ControlSpec(0, 1, default: 0.2)),
-		~bulk = CV(ControlSpec(0, 1, default: 0.0)),
+		~rotationSpeed = CV(ControlSpec(-0.5, 0.5, default: 0)),
+		~pitchBend = CV(ControlSpec(-10, 10, default: 0)),
+		~hitSpeed = CV(ControlSpec(0.1, 3, default: 1)),
+		~hitAmp = CV(ControlSpec(0, 1, \db, default: 1)),
+		~humAmp = CV(ControlSpec(0, 1, \db, default: 1)),
+		~surfaceAmp = CV(ControlSpec(0, 1, \db, default: 1)),
 	];
 	~bellBus = Bus.audio(s, 2);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Patterns
-	Pdef(\b_base, Pbind(
-		\instrument, \glassHit,
-		\glassName, Prand([\B], inf),
-		\glass, Pfunc({ |e| e.postln; e.putAll(~glassHits[e[\glassName]].choose()) }),
-		\buffer, Pfunc({ |e| e[\buffer].bufnum }),
-		\dur, Pseq([1], inf),
-		\amp, Prand([0.03, 0.02, 0.021, 0.01], inf),
-		\out, State(\gliz)[\bellBus].index,
-		\scale, Scale.partch_o2(),
-		//\scale, Scale.bartok(),
-		\root, 0,
-		\octave, 6,
-		\degree, 0,
-		\impulseFreq, 0,
-		\impulseDecay, 10,
-		\combDelay, 0.4,
-		\combDecay, 5,
-		\klankDecay, 20,
-		\ring, State(\gliz)[\harmRingCV],
-		\amp, State(\gliz)[\harmAmpCV],
-		\impulseFilt, State(\gliz)[\impulseFiltCV],
-		\bend, State(\gliz)[\bendCV],
-	));
-
-
-	Pdef(\b_notes1, Pbind(
-		\degree, Pseq([
-			[0, 4], 0, 0,
-			[0, 5], 0, 0, 0,
-			[0, 4], 0, 0, 0, 0,
-			[-2, 6], [-3, 5], [-6, 3], 1,
-			[-1, 4, 7], [-3, 4, 8], [4, 8]
-		], inf)
-	));
-
-	Pdef(\b_notes2, Pbind(
-		\degree, Pseq([9, 9, 9, 8], inf)
-	));
-
-
-	Pdef(\b_imp1, Pbind(
-		\impulseFreq, Prand([4], inf),
-		\impulseDecay, Prand([0.1], inf),
-		\klankDecay, Prand([1], inf)
-	));
-
-	Pdef(\b_imp2, Pbind(
-		\impulseFreq, Prand([0, 0, 0, 0, 4, 6], inf),
-		\impulseDecay, Prand([2, 3, 3, 3, 5, 5, 10, 1] / 10, inf),
-		\klankDecay, Prand([5], inf)
-	));
-
-	Pdef(\b_imp3, Pbind(
-		\impulseFreq, Prand([0, 0, 0, 0, 4, 6], inf),
-		\impulseDecay, Prand([0.5], inf),
-		\klankDecay, Prand([5], inf)
-	));
-
-	Pdef(\slow, Pbind(
-		\dur, 12,
-		\degree, Pseq([0, 0, 6, 9 ,3], inf),
-		\impulseFreq, 10
-	));
-
-	Pdef(\stutter, Pbind(
-
-	));
-
-	Pdef(\durpat1, Pbind(
-		\impulseFreq, Prand([0, 0, 16, 1, 4, 6], inf),
-		\dur, Pseq([4, 4, 0.5, 0.5, 0.5, 8, 4, 4, 4, 4, 0.1, 0.1, 0.1, 8], inf),
-		\impulseDecay, Prand([2, 3, 3, 3, 5, 5, 10, 1] * 3, inf),
-	));
-
-	Pdef(\durpat2, Pbind(
-		\impulseFreq, Prand([0, 0, 16, 1, 4, 6], inf),
-		\dur, Pseq([0.5, 0.5, 8], inf),
-		\impulseDecay, Prand([2, 3, 3, 3, 5, 5, 10, 1] * 3, inf),
-	));
-
-	Pdef(\durpat3, Pbind(
-		\impulseFreq, Prand([0, 0, 0, 0], inf),
-		\dur, Pseq([1, 1, 1, 4], inf),
-		\impulseDecay, Prand([2, 3, 3, 3, 5, 5, 10, 1] * 3, inf),
-	));
-
-	Pdef(\scale, Pbind(
-		\degree, Pseq([8, 9, 10, 11, 12], inf)
-	));
-
-	Pdef(\stutter, Pbind(
-		\dur, PdurStutter(
-			Pseq((1!7) ++ [6], inf),
-			Pseq((Pkey(\dur) ! 7) ++ [12])
-		),
-		\degree, Ptrace(Pkey(\degree) + Pseq((0!7) ++ [[0, -12]], inf))
-	));
-
-	Pdef(\lichenhiss, Pbind(
-		\instrument, \lichenhiss,
-		\scale, Scale.bartok(),
-		\pfreq, 20,
-		\freq, 440,
-		\dur, 8,
-		\out, State(\gliz)[\bellBus].index,
-	));
-
-	Pdef(\high1, Pbind(
-		\dur, Prand([12, 12, 16, 24], inf),
-		\amp, 0.1,
-		\octave, 7,
-		\degree, [6, 6.76]
-	));
-
-	Pdef(\main);
-
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Controls
@@ -355,14 +230,9 @@ State(\gliz).initActions.add({
 
 State(\gliz).startActions.add({
 	var lastNote, triggers;
-	"Bell1 on".postln;
 
 	~patterns = [
 		nil,
-		Pdef(\durpat3) <> Pdef(\b_imp1) <> Pdef(\b_notes1) <> Pdef(\b_base),
-		Pdef(\stutter) <> Pdef(\durpat3) <> Pdef(\b_notes1) <> Pdef(\b_base),
-		Pdef(\durpat3) <> Pdef(\b_notes1) <> Pdef(\b_base),
-		Pdef(\durpat2) <> Pdef(\slow) <> Pdef(\b_notes1) <> Pdef(\b_base)
 	];
 
 	~patterns.do({
@@ -375,7 +245,8 @@ State(\gliz).startActions.add({
 	~surfaceSynth = Synth.controls(\lichenSurface, [
 		\out, 0,
 		\in, ~bellBus.index,
-		\bulk, ~bulk
+		\bulk, ~bulk,
+		\amp, ~surfaceAmp
 	], addAction: \addAfter);
 
 	~controls.do({
@@ -383,10 +254,6 @@ State(\gliz).startActions.add({
 		~lc.knobs[3 + (i * 4)].lightWhenActive_(true).cv = cv;
 	});
 
-	Pdef(\main).stop;
-	Pdef(\main, Pdef(\durpat2) <> Pdef(\slow) <> Pdef(\b_notes1) <> Pdef(\b_base)).stop;
-
-	Pdef(\high, Pdef(\high1) <> Pdef(\b_base)).stop;
 });
 
 State(\gliz).stopActions.add({
