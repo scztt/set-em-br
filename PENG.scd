@@ -72,7 +72,9 @@ State(\peng).initActions.add({
 		arg amp = 0.3, gate = 1, bellFreq = 600, input = 10,
 		noiseLPF = 50, decayAmt = 3, lpf = 40, dur = 8, noiseAmt = 0.9, delayAmt = 0.1,
 		whiteAmt = 0.1;
-		var in, impulse, decay, noise, freq, freqs, amps, decays, verbSig, sig, delayTimes, delayAmts, delaySpike, env, sigForComb;
+
+		var in, impulse, decay, noise, freq, freqs, amps, decays, verbSig, sig,
+		delayTimes, delayAmts, delaySpike, env, sigForComb, noiseLPFadjust;
 
 		env = EnvGen.kr(Env([0, 1, 1, 0], [1, 0.1, 8], releaseNode:2), gate:gate, doneAction:2);
 		freq = bellFreq;
@@ -82,10 +84,15 @@ State(\peng).initActions.add({
 		// in = LeakDC.ar(in + Mix(CombC.ar(LeakDC.ar(in), 0.1, 1 / [0.3,2,4,8,12,20], 2, 0.001)));
 
 		in = in * (0.4 + HardCompress.ar(
-			((FreqShift.ar(in * env, -60) * LPF.ar(PinkNoise.ar(noiseAmt), lpf * 4))),
+			((FreqShift.ar(in * env, -60) * LPF.ar(PinkNoise.ar(noiseAmt), lpf * 6))),
 			speed: 0.1
 		));
-		in = LeakDC.ar(in + LPF.ar(in.pow(2), noiseLPF, 10));
+		noiseLPFadjust = noiseLPF.linlin(10, 1000, 0.dbamp, -6.dbamp);
+
+		in = LeakDC.ar(in + LPF.ar(in.pow(2), noiseLPF, 5)).tanh;
+		Amplitude.ar(in).round(0.1).poll(10);
+		in = noiseLPFadjust * env * in;
+		in = Compander.ar(in, in, 0.6, 1, 1/6, 0.01);
 
 		//decay = Decay.ar(in * 0.01, decayAmt);
 		decay = in;
@@ -104,8 +111,8 @@ State(\peng).initActions.add({
 
 		sigForComb = sig * env;
 		sig = sig + [
-			CombC.ar(in * sigForComb, 0.4, (bellFreq * [1, 2, 3]).reciprocal, 0.4).sum,
-			CombC.ar(in * sigForComb, 0.4, (bellFreq * [1.001, 2.0032, 3.0104]).reciprocal, 0.61).sum;
+			CombC.ar(in * sigForComb, 0.4, (bellFreq * [1, 2, 3]).reciprocal, 0.3).sum,
+			CombC.ar(in * sigForComb, 0.4, (bellFreq * [1.001, 2.0032, 3.0104]).reciprocal, 0.31).sum;
 		];
 		sig = sig + [
 			CombC.ar(sigForComb, 0.4, [0.1,0.2,0.3], 0.2).sum / 3,
@@ -132,8 +139,8 @@ State(\peng).initActions.add({
 		sig = sig * 0.2;
 
 		delaySpike = LagUD.ar(Trig1.ar(LFNoise2.ar(6).range(0, 1) - delayAmt, 0.1), 0.01, 1.7);
-		delayTimes = [0.497, 1, 2, 3, 4, 5] * (1 / bellFreq);
-		delayAmts = [delaySpike.range(1, 0.15)] ++ (delaySpike.range(0, 0.65) ! 5);
+		delayTimes = [0.497, 0.7, 1.1, 2.0, 3.01, 4.05, 3.93, 6.0] * (4 / bellFreq);
+		delayAmts = [delaySpike.linlin(0, 1, 1, 0.15)] ++ (delaySpike.linlin(0, 1, 0, 0.65) ! 5);
 
 		sig = sig + (0.4 * [
 			Mix(CombC.ar(sig[0] * delaySpike, 0.1, delayTimes, delayAmts)),
@@ -142,21 +149,23 @@ State(\peng).initActions.add({
 
 		sig = sig * env;
 		sig = LeakDC.ar(sig * amp);
+		sig = (sig ! 4).flatten;
 
 		Out.ar(0, sig);
 	}).add;
 
 	SynthDef(\driver, {
-		arg out = 0, pengOut = 0, cymbalIn, gate = 0, amp = 1, freq = 6300, rate = 8, decay = 0.9, double = 0, noiseAmt = 0.2;
-		var sig, imp, multiImp, cymbalGate, multiAmt;
+		arg out = 0, pengOut = 0, cymbalIn, gate = 0, amp = 1, freq = 6300, rate = 8, decay = 0.9, double = 0, noiseAmt = 0.2,
+		feedAmt = 0.7, delayLevel = 0;
+		var sig, imp, multiImp, cymbalGate, multiAmt, delayLevels, delaySig, delayIn, mixedSig;
 
 		noiseAmt = noiseAmt * LFNoise2.kr(0.6).range(0.95, 1.05);
 
 		imp = Impulse.ar(rate, LFNoise2.kr(8).pow(8) * 0.15) + (double * Impulse.ar(rate));
 
 		imp = Decay.ar(imp, LFNoise2.kr(1).range(decay * 0.2, decay));
-		imp = RLPF.ar(imp, freq, 1000 / freq);
-
+		//imp = RLPF.ar(imp, freq, 1000 / freq);
+		imp = BLowPass4.ar(imp, freq, 1000 / freq);
 		multiAmt = max(0, double - 0.5) * 2;
 		multiImp = Mix(DelayN.ar(imp, 0.3, 1 / [2, 3, 5, 8, 9, 12, 14, 22, 25] * multiAmt)) * (1 / 9);
 		imp = XFade2.ar(imp, multiImp, multiAmt * 2 - 1);
@@ -176,10 +185,30 @@ State(\peng).initActions.add({
 		));
 
 		sig = sig + HPF.ar(CombC.ar(sig * LFNoise2.kr(0.1).pow(4), 3, 2.1, 3), 700);
-		sig = sig * EnvGen.kr(Env([0, 1, 1, 0], [0.1, 1, 3], releaseNode:2), gate:gate, doneAction:2);
-
-		Out.ar(out, sig * [1, 1] * amp.lag(0.5));
 		Out.ar(pengOut, sig * [1, 1]);
+
+		delayLevels = delayLevel ! 8;
+		delayIn = LocalIn.ar(8);
+		delaySig = [0.5, 0.51, 1.01, 1.51, 2.332, 3.1, 3.333, 4.5].collect({
+			| delayTime, i |
+			var a, b, c, d, e, f, g, h, n, depth, l, r, dsig;
+			dsig = DelayC.ar((delayIn[i] * feedAmt), delayTime, delayTime);
+			dsig = LeakDC.ar(dsig);
+			dsig = HPF.ar(dsig, 400);
+			depth = LFNoise2.kr(Rand(0.14, 0.2)).range(-1, 1);
+			#l, r = Pan2.ar(dsig, Rand(0.2, 0.1));
+
+			#a, c, n, e, g = PanAz.ar(5, l, depth, orientation: -0.5);
+			#b, d, n, f, h = PanAz.ar(5, r, depth, orientation: -0.5);
+			[a, b, c, d, e, f, g, h];
+		}).sum.postln;
+
+		LocalOut.ar(delaySig.collect(_ + (sig)) * delayLevels);
+
+		mixedSig = (amp.lag(0.05) * 0.25 * (sig ! 8)) + delaySig;
+		mixedSig = mixedSig * EnvGen.kr(Env([0, 1, 1, 0], [0.1, 1, 3], releaseNode:2), gate:gate, doneAction:2);
+
+		Out.ar(out, mixedSig);
 	}).add();
 
 	~lc.notNil.if({ ~lc.free });
@@ -211,6 +240,9 @@ State(\peng).initActions.add({
 		~driverDecay = 		CV(ControlSpec(0.05, 1.5, warp: \exp, default: 0.9)),
 		~driverNoiseAmt = 	CV(ControlSpec(0, 1, default: 0)),
 		~driverDouble = 	CV(ControlSpec(0, 1, default: 0)),
+		~driverDouble = 	CV(ControlSpec(0, 1, default: 0)),
+		~driverDelayLevel = CV(ControlSpec(0, 0.5, default: 0)),
+		~driverFeedAmt = 	CV(ControlSpec(0, 0.75, default: 0.5)),
 	];
 
 	~pengControls = [
@@ -221,20 +253,6 @@ State(\peng).initActions.add({
 		~pengLPF = 			CV(ControlSpec(10, 200, warp: \exp, default: 50)),
 		~pengDelayAmt = 	CV(ControlSpec(0, 1, default: 0.1))
 	];
-
-	/*Pdef(\guitrace, Pbind(
-		\gui, Pfunc({
-			| e |
-			var now = AppClock.seconds;
-			~eventList.add((
-				\start: now,
-				\end: now + e.delta,
-				\instrument: e[\instrument].asString,
-				\node: e[\bellFreq].round(0.1);
-			));
-			{ ~eventWindow.refresh() }.e.defer();
-		})
-	));*/
 
 	Pdef(\peng, Pbind(
 		\instrument, \peng,
@@ -399,7 +417,9 @@ State(\peng).startActions.add({
 		\freq: ~driverFreq,
 		\decay: ~driverDecay,
 		\double: ~driverDouble,
-		\noiseAmt: ~driverNoiseAmt
+		\noiseAmt: ~driverNoiseAmt,
+		\delayLevel: ~driverDelayLevel,
+		\feedAmt: ~driverFeedAmt
 	]);
 
 	~cymbalEvent = (
