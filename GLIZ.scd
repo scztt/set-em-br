@@ -214,7 +214,7 @@ State(\gliz).initActions.put(0, {
 	~controls = [
 		~rotationSpeed = CV(ControlSpec(-0.5, 0.5, default: 0)),
 		~pitchBend = CV(ControlSpec(-10, 10, default: 0)),
-		~hitSpeed = CV(ControlSpec(0.1, 3, default: 1)),
+		~hitSpeed = CV(ControlSpec(0.5, 20, \exp, default: 1)),
 		~hitAmp = CV(ControlSpec(0, 1, \db, default: 1)),
 		~humAmp = CV(ControlSpec(0, 1, \db, default: 1)),
 		~surfaceAmp = CV(ControlSpec(0, 1, \db, default: 1)),

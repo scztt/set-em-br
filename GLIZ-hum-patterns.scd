@@ -24,14 +24,14 @@ State(\gliz).initActions.put(11, {
 		sigMix = sigMix * amp;
 
 		rotation = LFSaw.ar(rotationSpeed * Rand(0.8, 1.2), Rand(0, 1)) + 1;
-		bSig = PanB2.ar(sigMix[0], (rotation - 1).poll(3))
-		+ PanB2.ar(sigMix[0], ((rotation % 1) - 1).poll(3));
+		bSig = PanB2.ar(sigMix[0], (rotation - 1))
+		+ PanB2.ar(sigMix[0], ((rotation % 1) - 1));
 
 		#a, c, d, b = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
 		#e, g, h, f = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
 
-		//Out.ar(out, [a, b, c, d, e, f, g, h]);
-		#a, b = B2UHJ.ar(*bSig);
+		Out.ar(out, [a, b, c, d, e, f, g, h]);
+		//#a, b = B2UHJ.ar(*bSig);
 		Out.ar(out, [a, b]);
 	}).add;
 
@@ -39,7 +39,7 @@ State(\gliz).initActions.put(11, {
 		\instrument, \glassHum,
 		\dur, Pseq([6], inf),
 		\hum, 3,
-		\legato, 1,
+		\legato, 1.3,
 		\amp, 0.7,
 		\octave, 8,
 		\degree, 0,
@@ -74,13 +74,13 @@ State(\gliz).initActions.put(11, {
 
 	~humPatterns = [
 		Pdef(\humA, Pbind(
-			\hum, Pseq(   [ [  0,   1,   1,   1,   0 ] ], inf),
-			\degree, Pseq([ [-32, -25, -25, -18, -18 ] +.x [0, -12] ], inf),
+			\hum, Pseq(   [ [ 9 ] ], inf),
+			\degree, Pseq([ [ 2, 2.02 ]  ], inf),
 		)),
 
 		Pdef(\humB, Pbind(
 			\hum, Pseq(   [ [ 9, 9 ] ], inf),
-			\degree, Pseq([ [ 1, 2 ] ], inf),
+			\degree, Pseq([ [ 1, 2.02 ] ], inf),
 		)),
 
 		Pdef(\humC, Pbind(
@@ -104,18 +104,18 @@ State(\gliz).initActions.put(11, {
 		)),
 
 		Pdef(\humG, Pbind(
-			\hum, Pseq(   [ [  6,  7,  6, 8 ] ], inf),
-			\degree, Pseq([ [-11, -6, -3, 1 ] ], inf),
+			\hum, Pseq(   [ [  3,   6,  7,  6, 8 ] ], inf),
+			\degree, Pseq([ [-18, -11, -6, -3, 1 ] ], inf),
 		)),
 
 		Pdef(\humH, Pbind(
-			\hum, Pseq(   [ [  2,  6,   7,   6,  7, ] ], inf),
-			\degree, Pseq([ [-11, -9,  -6,  -3,  1, ] ], inf),
+			\hum, Pseq(   [ [   2,  6,   7,   6,  7, ] ], inf),
+			\degree, Pseq([ [ -11, -9,  -6,  -3,  1, ] ], inf),
 		)),
 
 		Pdef(\humI, Pbind(
-			\hum, Pseq(   [ [  2,   5,   6,  7,  5,  6 ] ], inf),
-			\degree, Pseq([ [-14, -11, -11, -9, -6, -2 ] ], inf),
+			\hum, Pseq(   [ [  1,   2,   5,   6,  7,  5,  6 ] ], inf),
+			\degree, Pseq([ [-28, -14, -11, -11, -9, -6, -2 ] ], inf),
 		)),
 
 		Pdef(\humJ, Pbind(
