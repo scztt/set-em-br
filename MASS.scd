@@ -28,7 +28,8 @@ State(\mass).initActions.add({
 
 	SynthDef(\lesser, {
 		var pulse, pulse2, phase, noise, noise2, jumps, phases, density,
-		pulseAmt, freqFade, sig, freqs, freqMult, fx, clip, filtSig, volume;
+		pulseAmt, freqFade, sig, freqs, freqMult, fx, clip, filtSig, volume,
+		bSig, a, b, c, d, e, f, g, h;
 
 		density = \density.kr(0).lag(5);
 		fx = \fx.kr(0).lag(5);
@@ -93,19 +94,27 @@ State(\mass).initActions.add({
 		});
 
 		volume = \volume.kr(0.7).lag(0.5);
-		sig = Splay.ar(noise, density.range(0.1, 1));
-		sig = LeakDC.ar(sig);
-		sig = Compander.ar(sig, sig, 0.6, 1/6, 1/8, 1, 5);
-		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
+		//sig = Splay.ar(noise, density.range(0.1, 1));
+		bSig = Mix(noise.collect({ |n, i| PanB2.ar(n, (i / noise.size).linlin(0, 1, -1, 1)) }));
+		//sig = LeakDC.ar(sig);
+		bSig = Compander.ar(bSig, bSig.sum / 4, 0.6, 1/6, 1/8, 1, 5);
+		bSig = -6.dbamp * bSig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
 
-		Out.ar(\out.ir(0), sig);
+		#a, c, d, b = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
+		#e, g, h, f = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
+
+		Out.ar(\out.ir(0), [a, b, c, d, e, f, g, h]);
+		//#a, b = B2UHJ.ar(*bSig);
+
+		//Out.ar(\out.ir(0), [a, b]);
 	}).add;
 
 	SynthDef(\greater, {
-		var pulse, pulse2, phase, noise, noise2, jumps, phases, pulseAmt, freqFade, density, sig, freqs, fx, volume;
+		var pulse, pulse2, phase, noise, noise2, jumps, phases, pulseAmt, freqFade, density, sig, freqs, fx, volume,
+		a, b, c, d, e, f, g, h, bSig;
 
 		density = \density.kr(0).lag(5);
 		fx = \fx.kr(0).lag(5);
@@ -169,14 +178,21 @@ State(\mass).initActions.add({
 		});
 
 		volume = \volume.kr(0.7).lag(0.5);
-		sig = Splay.ar(noise, density.range(0.1, 1));
-		sig = Compander.ar(sig, sig, 0.6, 1/6, 1/8, 1, 5);
-		sig = -6.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
+		//sig = Splay.ar(noise, density.range(0.1, 1));
+		bSig = Mix(noise.collect({ |n, i| PanB2.ar(n, (i / noise.size).linlin(0, 1, -1, 1)) }));
+
+		bSig = Compander.ar(bSig, bSig.sum / 4, 0.6, 1/6, 1/8, 1, 5);
+		bSig = -6.dbamp * bSig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
 
-		Out.ar(\out.ir(0), sig);
+		#a, c, d, b = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
+		#e, g, h, f = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
+
+		Out.ar(\out.ir(0), [a, b, c, d, e, f, g, h]);
+		//#a, b = B2UHJ.ar(*bSig);
+		//Out.ar(\out.ir(0), [a, b]);
 	}).add;
 
 	SynthDef(\let, {
