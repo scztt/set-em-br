@@ -26,7 +26,7 @@ State(\control).initActions.add({
 
 	~lc.buttons[0].buttonOnActions.add(e{
 		Log(\peng, "connected");
-		State(\peng)[\lcb].connect();
+		State(\peng)[\lc].connect();
 		~currentState = State(\peng);
 	});
 
@@ -61,7 +61,20 @@ State(\control).initActions.add({
 
 	~lc.connect;
 
+	~mixdown = {
+		var sig = In.ar(0, 8);
+		sig = 0.2 * [
+			sig[0] + sig[2] + sig[4] + sig[6] ,
+			sig[1] + sig[3] + sig[5] + sig[7]
+		];
+		ReplaceOut.ar(0, sig ++ (DC.ar(0) ! 6));
+	}.play(target: s, addAction: \addAfter);
+
 	// Log(\control, "READY");
 });
+
+State(\control).freeActions.add({
+	~mixdown.free;
+})
 
 State(\control).doInit();
