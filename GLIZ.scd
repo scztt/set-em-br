@@ -76,99 +76,22 @@ State(\gliz).initActions.put(0, {
 		noise = PlayBuf.ar(4, ~sf.bufnum, 1, startPos: 0, loop: 1)  * 5000;
 		noise = HPF.ar(noise, 12000);
 		sig = (noise);
-			sig = sig + (0.1 * HardCompress.ar(sig, 0.1, 0.05));
-			sig = XFade2.ar(sig, ~bulkSynth.value(sig), bulk * 2 - 1);
+		sig = sig + (0.1 * HardCompress.ar(sig, 0.1, 0.05));
+		sig = XFade2.ar(sig, ~bulkSynth.value(sig), bulk * 2 - 1);
 		sig = sig * 0.1;
 		LocalOut.ar(sig);
-		Out.ar(out, (sig + inSig + inSigLow) * amp * 0.01);
+
+		sig = (sig + inSig + inSigLow) * amp * 0.01;
+		sig = [
+			sig[0], sig[1],
+			sig[0], sig[1],
+			sig[2], sig[2],
+			sig[2], sig[2]
+		];
+
+		Out.ar(out, sig);
 	}).add;
 
-
-	~cymbal = {
-		arg drive;
-		var lodriver, locutoffenv, hidriver, hicutoffenv, freqs, res, thwack, gdrive;
-
-		drive = drive.abs;
-		gdrive = Gate.ar(drive, drive);
-
-		locutoffenv = EnvGen.ar(Env.perc(gdrive, 5), gate:drive, levelScale:gdrive) * 20000 + 10;
-		lodriver = LPF.ar(WhiteNoise.ar(0.1), locutoffenv);
-
-		hicutoffenv = 10001 - (EnvGen.ar(Env.perc(1, 3), gate:drive, levelScale:gdrive) * 10000);
-		hidriver = HPF.ar(WhiteNoise.ar(0.1), hicutoffenv);
-		hidriver = hidriver * EnvGen.ar(Env.perc(1, 2, 0.25), gate:drive, levelScale:gdrive);
-
-		thwack = EnvGen.ar(Env.perc(0.001,0.001,1), gate:drive, levelScale:gdrive);
-
-		thisThread.randSeed = 6345;
-		freqs  = {exprand(300, 20000)}.dup(30);
-		res    = Ringz.ar(lodriver + hidriver + thwack, freqs).mean;
-
-		((res * 1) + (lodriver * 2) + thwack);
-	};
-
-	~taylorTones = [292.8, 586.1, 693.0, 882.1, 1171.4, 1560.4, 1764.2, 1949.7,  2158.6, 2441.4, /*2619.2, 3184.6*/ ] / 1171.4;
-
-	SynthDef(\lichen1, {
-		arg out = 0, freq = 100, combDelay = 0.2, combDecay = 1, klankDecay = 1, pan = 0,
-		impulseFreq = 0, impulseDecay = 0.5, ring = 0, amp=0, impulseFilt=50, bend=0.3
-		;
-		var sig, panned, klank, impulse, cymbal,
-		env, harm, comb, saw, bendEnv, debug
-		;
-
-		env = Env([0, 0.8, 0.01, 0], [0.001, 20, 0.01], [-5, -5, -5]);
-
-		harm = ~taylorTones;
-		amp = ~taylorTones.size.collect({
-			|i|
-			i = i / ~taylorTones.size;
-			1 - i.pow(2.pow(amp));
-		});
-		ring = ~taylorTones.size.collect({
-			|i|
-			i = i / ~taylorTones.size;
-			1 - (0.9 * i.pow(2.pow(ring)));
-		});
-
-		impulseFreq = LFNoise2.kr(8, impulseFreq * 0.05, impulseFreq);
-		impulseDecay = LFNoise2.kr(8, impulseDecay * 0.9, impulseDecay);
-
-		impulse = Impulse.ar(impulseFreq)
-		* LFNoise2.kr(35).range(0.05, 1);
-		cymbal = ~cymbal.(impulse);
-
-		impulse = Decay.ar(impulse, impulseDecay.max(0), 0.010);
-		impulse = LPF.ar(impulse, impulseFilt) + HPF.ar(impulse * WhiteNoise.ar() * GrayNoise.ar() * 0.01, 15000);
-		impulse = (impulse * 0.6) + (cymbal * 0.00001);
-
-		bendEnv = EnvGen.ar(Env.perc(0.01, klankDecay / 6, 1, bend.range(-16, 0))) * bend;
-		klank = DynKlank.ar(`[harm, amp, ring],
-			input: impulse,
-			freqscale: freq,
-			freqoffset: LFDNoise3.ar(0.5 * bendEnv.pow(2), bendEnv.range(6, 10)),
-			decayscale: (klankDecay * EnvGen.kr(env)).max(0)
-		);
-		klank = klank * EnvGen.kr(env);
-		comb = klank + APF.ar(klank, 0.2, combDelay, combDecay);
-		panned = Pan2.ar(comb, pan);
-
-		DetectSilence.ar(comb, time:0.4, doneAction:2);
-		Out.ar(out, panned);
-	}).add;
-
-	SynthDef(\lichenthump, {
-		arg out = 0, freq = 100, dur;
-		var sig, env;
-
-		env = EnvGen.ar(Env.perc(0.4, dur, 1, -8), doneAction:2);
-		sig = SinOsc.ar(env.range(7, 40), 0, env) * 0.3;
-		sig = VarSaw.ar(env.range(freq, freq + 5), 0, env, env) * 0.3;
-		sig = LPF.ar(sig, 100);
-		sig = LeakDC.ar(sig);
-
-		Out.ar(out, [sig, sig]);
-	}).add;
 
 	SynthDef(\lichenhiss, {
 		arg out = 0, freq = 600, pfreq = 20, dur;

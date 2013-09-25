@@ -4,12 +4,11 @@ State(\mass).clear;
 State(\mass).autoEnvirWindow = true;
 
 State(\mass).initActions.add({
-	var chordSequence, chordSequenceLow, chordSequenceHigh, mirror, voiceCount;
 
-	voiceCount = 40;
-	chordSequence = {
+	~voiceCount = 40;
+	~chordSequence = {
 		| base |
-		voiceCount.collect({
+		~voiceCount.collect({
 			| i |
 			[
 				Scale.dorian.degreeToFreq(7.rand, base.midicps, 2.rand),
@@ -23,8 +22,8 @@ State(\mass).initActions.add({
 		});
 	};
 
-	chordSequenceLow = chordSequence.(30);
-	chordSequenceHigh = chordSequence.(30 + 24);
+	~chordSequenceLow = ~chordSequence.(30);
+	~chordSequenceHigh = ~chordSequence.(30 + 24);
 
 	SynthDef(\lesser, {
 		var pulse, pulse2, phase, noise, noise2, jumps, phases, density,
@@ -42,7 +41,7 @@ State(\mass).initActions.add({
 
 		jumps = 2.collect({
 			PanAz.ar(
-				voiceCount, pulse,
+				~voiceCount, pulse,
 				pos: LFNoise2.kr(0.06).range(-1,1),
 				width: LFNoise2.kr(0.07).range(2 + (density), 2 + (density * 4))
 			)
@@ -59,7 +58,7 @@ State(\mass).initActions.add({
 		freqs = phases.collect({
 			| p, i |
 			Select.kr(
-				(fx.pow(Rand(1, 5)) * 6) + Rand(-0.25, 0.25), chordSequenceLow[i]
+				(fx.pow(Rand(1, 5)) * 6) + Rand(-0.25, 0.25), ~chordSequenceLow[i]
 			);
 		});
 
@@ -97,12 +96,13 @@ State(\mass).initActions.add({
 		volume = \volume.kr(0.7).lag(0.5);
 		sig = noise.clump(2).collect({
 			| s, i |
-			var a, b, c, d, e, f, g, h, n, pan;
-			pan = (i / (noise.size / 2)) * 2 - 1;
-			#a, c, n, e, g = PanAz.ar(5, s[0], pos: pan, width: density.linlin(0, 1, 2, 3), );
-			#b, d, n, f, h = PanAz.ar(5, s[1], pos: pan, width: density.linlin(0, 1, 2, 3), );
-			[a, b, c, d, e, f, g, h];
+			var leftSide, rightSide, pan;
+			pan = i / (noise.size / 2);
+			leftSide = PanArray.ar(4, s[0], pos: pan, width: density.linlin(0, 1, 2, 3));
+			rightSide = PanArray.ar(4, s[1], pos: pan, width: density.linlin(0, 1, 2, 3));
+			[leftSide, rightSide].flop.flatten;
 		});
+
 		sig = Mix(sig);
 		sig = Compander.ar(sig, sig.sum / 8, 0.6, 1/6, 1/8, 1, 5);
 		sig = -12.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
@@ -110,24 +110,6 @@ State(\mass).initActions.add({
 			doneAction: 2
 		);
 
-		// bSig = Mix(noise.collect({
-		// 	|n, i|
-		// 	PanB2.ar(n, (1 % 2 * 2 - 1) * (i / noise.size).linlin(0, 1, -1, 1))
-		// }));
-		//
-		// bSig = Compander.ar(bSig, bSig.sum / 4, 0.6, 1/6, 1/8, 1, 5);
-		// bSig = -12.dbamp * bSig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
-		// 	gate: \gate.kr(1),
-		// 	doneAction: 2
-		// );
-		//
-		// #a, c, d, b = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
-		// #e, g, h, f = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
-		//
-		// //Out.ar(\out.ir(0), [a, b, c, d, e, f, g, h]);
-		// #a, b = B2UHJ.ar(*bSig);
-		//
-		// Out.ar(\out.ir(0), [a, b]);
 		Out.ar(\out.ir(0), sig);
 	}).add;
 
@@ -146,7 +128,7 @@ State(\mass).initActions.add({
 
 		jumps = 2.collect({
 			PanAz.ar(
-				voiceCount, pulse,
+				~voiceCount, pulse,
 				pos: LFNoise2.kr(0.06).range(-1, 1),
 				width: LFNoise2.kr(0.07).range(2 + (density * 10), 2 + (density * 20))
 			)
@@ -158,12 +140,12 @@ State(\mass).initActions.add({
 			(2.0.rand + Integrator.ar(jump.abs.neg * 0.2, 1)) % (2 * pi);
 		});
 
-		pulseAmt = LFNoise2.kr(LFNoise2.kr(0.4).range(0.1, 0.5)).exprange(0.5, 2.0);
+		pulseAmt = LFNoise2.kr(LFNoise2.kr(0.2).range(0.1, 0.3)).exprange(0.5, 2.0);
 
 		freqs = phases.collect({
 			| p, i |
 			Select.kr(
-				(fx.pow(Rand(1, 5)) * 6) + Rand(-0.25, 0.25), chordSequenceHigh[i]
+				(fx.pow(Rand(1, 5)) * 6) + Rand(-0.25, 0.25), ~chordSequenceHigh[i]
 			);
 		});
 

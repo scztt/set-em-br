@@ -23,16 +23,15 @@ State(\gliz).initActions.put(11, {
 		sigMix = LPF.ar(sigMix, 20000 * rate.min(1));
 		sigMix = sigMix * amp;
 
-		rotation = LFSaw.ar(rotationSpeed * Rand(0.8, 1.2), Rand(0, 1)) + 1;
-		bSig = PanB2.ar(sigMix[0], (rotation - 1))
-		+ PanB2.ar(sigMix[0], ((rotation % 1) - 1));
+		rotation = LFSaw.ar(rotationSpeed * Rand(0.8, 1.2), Rand(0, 1)) - 1;
+		bSig = BiPanB2.ar(sigMix[0], sigMix[1], rotation);
 
 		#a, c, d, b = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
 		#e, g, h, f = DecodeB2.ar(4, bSig[0], bSig[1], bSig[1], 0.5);
 
 		Out.ar(out, [a, b, c, d, e, f, g, h]);
-		//#a, b = B2UHJ.ar(*bSig);
-		Out.ar(out, [a, b]);
+
+		//Out.ar(out, [a, b]);
 	}).add;
 
 	Pdef(\humBase, Pbind(

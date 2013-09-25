@@ -71,10 +71,10 @@ State(\peng).initActions.add({
 	SynthDef( \peng, {
 		arg amp = 0.3, gate = 1, bellFreq = 600, input = 10,
 		noiseLPF = 50, decayAmt = 3, lpf = 40, dur = 8, noiseAmt = 0.9, delayAmt = 0.1,
-		whiteAmt = 0.1;
+		whiteAmt = 0.1, forward = 0;
 
 		var in, impulse, decay, noise, freq, freqs, amps, decays, verbSig, sig,
-		delayTimes, delayAmts, delaySpike, env, sigForComb, noiseLPFadjust;
+		delayTimes, delayAmts, delaySpike, env, sigForComb, noiseLPFadjust, positionEnv, positionWidth;
 
 		env = EnvGen.kr(Env([0, 1, 1, 0], [1, 0.1, 8], releaseNode:2), gate:gate, doneAction:2);
 		freq = bellFreq;
@@ -138,8 +138,9 @@ State(\peng).initActions.add({
 		+ (0.9 * HardCompress.ar((verbSig * 0.3) + (in * LPF.ar( PinkNoise.ar(0.25), lpf))));
 		sig = sig * 0.2;
 
+		// delaySpike
 		delaySpike = LagUD.ar(Trig1.ar(LFNoise2.ar(6).range(0, 1) - delayAmt, 0.1), 0.01, 1.7);
-		delayTimes = [0.497, 0.7, 1.1, 2.0, 3.01, 4.05, 3.93, 6.0] * (4 / bellFreq);
+		delayTimes = [0.497, 1, 2, 3, 4, 5] * (4 / bellFreq);
 		delayAmts = [delaySpike.linlin(0, 1, 1, 0.15)] ++ (delaySpike.linlin(0, 1, 0, 0.65) ! 5);
 
 		sig = sig + (0.4 * [
@@ -147,9 +148,18 @@ State(\peng).initActions.add({
 			Mix(CombC.ar(sig[1] * delaySpike, 0.1, delayTimes, delayAmts)),
 		]);
 
+		// Final env and amp
 		sig = sig * env;
 		sig = LeakDC.ar(sig * amp);
-		sig = (sig ! 4).flatten;
+
+		// Panning
+		positionEnv = EnvGen.kr(Env([1, 0.5, (forward * 0.5)], [0.25, 0.75]), timeScale: dur);
+		positionWidth = forward + 2;
+
+		sig = [
+			PanArray.ar(4, sig[0], positionEnv, 1, positionWidth),
+			PanArray.ar(4, sig[1], positionEnv, 1, positionWidth)
+		].flop.flatten;
 
 		Out.ar(0, sig);
 	}).add;
@@ -277,7 +287,7 @@ State(\peng).initActions.add({
 
 	Pdef(\note1, Pbind(
 		\bellFreq, Pseq([
-			[4, 6.3], 4, 4, [4, 8], 4, 4, [2, 8], 2, 2,
+			[4, 6.3], 4, 4, [4, 8], 4, 4, [2, 8], 2, 2,   // 2,8 is off?
 		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
 	));
 
@@ -296,7 +306,7 @@ State(\peng).initActions.add({
 
 	Pdef(\note1, Pbind(
 		\bellFreq, Pseq([
-			[-3, 11], [11, 16, 22], [11, 16]
+			[-3, 11], [11, 16, 22], [11, 16]   // ???
 		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)), inf)
 	));
 
@@ -413,7 +423,7 @@ State(\peng).initActions.add({
 				~pengNoiseAmt, 0.57503937007874,
 				~pengNoiseLPF, 15.451703926941,
 			], 6);
-			Pdef(\mainPat, Pdef(\noteMain) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+			Pdef(\mainPat, Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
 		}),
 	];
 

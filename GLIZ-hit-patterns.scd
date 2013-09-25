@@ -23,8 +23,6 @@ State(\gliz).initActions.put(12, {
 		#e, g, h, f = DecodeB2.ar(4, bSig[0], bSig[1], bSig[2], 0.5);
 
 		Out.ar(out, [a, b, c, d, e, f, g, h]);
-		//#a, b = B2UHJ.ar(*bSig);
-		//Out.ar(out, [a, b]);
 	}).add;
 
 	Pdef(\glassBase, Pbind(
