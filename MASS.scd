@@ -105,7 +105,7 @@ State(\mass).initActions.add({
 
 		sig = Mix(sig);
 		sig = Compander.ar(sig, sig.sum / 8, 0.6, 1/6, 1/8, 1, 5);
-		sig = -12.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
+		sig = -16.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
@@ -189,7 +189,7 @@ State(\mass).initActions.add({
 		});
 		sig = Mix(sig);
 		sig = Compander.ar(sig, sig.sum / 8, 0.6, 1/6, 1/8, 1, 5);
-		sig = -12.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
+		sig = -16.dbamp * sig * volume * EnvGen.kr(Env([0, 1, 1, 0], [10, 5, 20], releaseNode: 2),
 			gate: \gate.kr(1),
 			doneAction: 2
 		);
