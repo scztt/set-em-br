@@ -201,6 +201,8 @@ State(\gliz).initActions.put(11, {
 		~lc.knobs[button].button;
 	});
 
+	~lc.knobs[30].button.default().buttonOnActions.add(e{ ~glassHit.(1) });
+
 	CVModalGroup(*~triggerButtons);
 
 });

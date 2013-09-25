@@ -25,6 +25,24 @@ State(\gliz).initActions.put(12, {
 		Out.ar(out, [a, b, c, d, e, f, g, h]);
 	}).add;
 
+	~glassHit = {
+		| degree = 0 |
+		var glass, sample, freq;
+		glass = [\A, \B, \D, \E].choose();
+		sample = ~glassHits[\B].choose();
+		freq = Scale.chromatic.degreeToFreq(degree, 247, 3);
+
+		Synth(\glassHit, args: [
+			vel: rrand(0.2, 0.7),
+			buffer: sample[\buffer].bufnum,
+			freq: freq / 8,
+			baseFreq: sample[\baseFreq],
+			rotation: rrand(-1, 1),
+			dur: 30
+		])
+	};
+
+
 	Pdef(\glassBase, Pbind(
 		\instrument, \glassHit,
 		\dur, Pseq([1], inf),
