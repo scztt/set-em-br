@@ -153,8 +153,8 @@ State(\peng).initActions.add({
 		sig = LeakDC.ar(sig * amp);
 
 		// Panning
-		positionEnv = EnvGen.kr(Env([1, 0.5, (forward * 0.5)], [0.25, 0.75]), timeScale: dur);
-		positionWidth = forward + 2;
+		positionEnv = EnvGen.kr(Env([1, 0.4, 0.4 - (forward * 0.4)], [0.35, 0.65]), timeScale: dur);
+		positionWidth = forward + 2.5;
 
 		sig = [
 			PanArray.ar(4, sig[0], positionEnv, 1, positionWidth),
@@ -166,10 +166,11 @@ State(\peng).initActions.add({
 
 	SynthDef(\driver, {
 		arg out = 0, pengOut = 0, cymbalIn, gate = 0, amp = 1, freq = 6300, rate = 8, decay = 0.9, double = 0, noiseAmt = 0.2,
-		feedAmt = 0.7, delayLevel = 0;
-		var sig, imp, multiImp, cymbalGate, multiAmt, delayLevels, delaySig, delayIn, mixedSig;
+		feedAmt = 0.7, delayLevel = 0, hiss = 0, hissVol = 0;
+		var sig, imp, multiImp, cymbalGate, multiAmt, delayLevels, delaySig, delayIn, mixedSig, hissEnv, hissSig, driverEnv, hissAmpEnv;
 
 		noiseAmt = noiseAmt * LFNoise2.kr(0.6).range(0.95, 1.05);
+		freq = freq.lag(0.2);
 
 		imp = Impulse.ar(rate, LFNoise2.kr(8).pow(8) * 0.15) + (double * Impulse.ar(rate));
 
@@ -182,7 +183,6 @@ State(\peng).initActions.add({
 
 		sig = SinOsc.ar(imp.range(80, 40), mul: imp);
 		sig = Compander.ar(sig, sig, 0.75, 1/4, 1/4, clampTime: 0.2, relaxTime: 1);
-		sig = sig + (InFeedback.ar(cymbalIn) * 0.05);
 		sig = sig + (imp * (
 			LPF.ar(
 				WhiteNoise.ar(IEnvGen.kr(Env([-30, -29, -15, -15], [0.25, 0.25, 0.5]), noiseAmt).dbamp),
@@ -195,6 +195,21 @@ State(\peng).initActions.add({
 		));
 
 		sig = sig + HPF.ar(CombC.ar(sig * LFNoise2.kr(0.1).pow(4), 3, 2.1, 3), 700);
+
+		hissEnv = EnvGen.kr(Env([0, 1, 1, 0], [0.03, 0.01, 0.001], curve: \sin, releaseNode: 2), gate: hiss > 0);
+		hissAmpEnv = EnvGen.kr(Env([0.0001, 0.05,  1, 0.00001], [0.1, 1], \exp, releaseNode: 2), gate: hiss > 0, timeScale: 5 + (hissVol * 30));
+		driverEnv = EnvGen.kr(Env([1, 0.05, 0.05, 1], [0.3, 0.3, 0.001], curve: \sin), gate: (1 - hiss) > 0);
+
+		hiss = WhiteNoise.ar(0.8) + (WhiteNoise.ar(0.2) * PinkNoise.ar(0.2));
+
+		//hiss = hiss * 20.collect({ LPF.ar(LFPulse.ar(LFNoise2.ar(Rand(1, 3)).range(8, 15)), 800) });
+		hiss = Mix(hiss);
+		hiss = HPF.ar(hiss, 10000 - (hissAmpEnv * 6000)) * (1 + (0.5 * Decay.ar(Dust.ar(hissAmpEnv * 30), 0.06)));
+		hiss = hiss + LPF.ar(LFSaw.ar(45 + [-20, 0, 20, 40, 60] - 8).sum, 100 + (hissAmpEnv * 400));
+		hiss = hiss * (hissVol + 0.5) * hissAmpEnv;
+
+		sig = XFade2.ar(sig * driverEnv, hiss, hissEnv.linlin(0, 1, -1, 1));
+
 		Out.ar(pengOut, sig * [1, 1]);
 
 		delayLevels = delayLevel ! 8;
@@ -205,13 +220,14 @@ State(\peng).initActions.add({
 			dsig = DelayC.ar((delayIn[i] * feedAmt), delayTime, delayTime);
 			dsig = LeakDC.ar(dsig);
 			dsig = HPF.ar(dsig, 400);
-			depth = LFNoise2.kr(Rand(0.14, 0.2)).range(-1, 1);
+			depth = LFNoise2.kr(Rand(0.14, 0.2)).range(0, 1);
 			#l, r = Pan2.ar(dsig, Rand(0.2, 0.1));
 
-			#a, c, n, e, g = PanAz.ar(5, l, depth, orientation: -0.5);
-			#b, d, n, f, h = PanAz.ar(5, r, depth, orientation: -0.5);
-			[a, b, c, d, e, f, g, h];
-		}).sum.postln;
+			[
+				PanArray.ar(4, l, depth),
+				PanArray.ar(4, r, depth)
+			].flop.flatten;
+		}).sum;
 
 		LocalOut.ar(delaySig.collect(_ + (sig)) * delayLevels);
 
@@ -261,14 +277,18 @@ State(\peng).initActions.add({
 		~pengDecayAmt = 	CV(ControlSpec(0.1, 10, default: 1)),
 		~pengNoiseAmt = 	CV(ControlSpec(0.01, 3, default:0.9)),
 		~pengLPF = 			CV(ControlSpec(10, 200, warp: \exp, default: 50)),
-		~pengDelayAmt = 	CV(ControlSpec(0, 1, default: 0.1))
+		~pengDelayAmt = 	CV(ControlSpec(0, 1, default: 0.1)),
+		~pengForward = 		CV(ControlSpec(0, 1, default: 0.1)),
 	];
+
+	~hissVol = CV(ControlSpec(0, 1, \db));
+	~hissTrig = CV(ControlSpec(0, 1));
 
 	Pdef(\peng, Pbind(
 		\instrument, \peng,
 		\input, ~bus.index,
 		\bellFreq, Pseq([0, 0, 4, 9, 0, [0, 8], 5, 7, 9, 9].collect(Scale.partch_o3.degreeToFreq(_ , 98, 0)), inf),
-		\dur, 4,
+		\dur, 16,
 		\legato, 1.5,
 		\amp, ~pengAmp,
 		\noiseLPF, ~pengNoiseLPF,
@@ -276,102 +296,76 @@ State(\peng).initActions.add({
 		\decayAmt, ~pengDecayAmt,
 		\noiseAmt, ~pengNoiseAmt,
 		\delayAmt, ~pengDelayAmt,
+		\forward, ~pengForward,
 	));
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			4, 4, 4, 4, 4, 4, 2, 2,
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
-	));
-
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[4, 6.3], 4, 4, [4, 8], 4, 4, [2, 8], 2, 2,   // 2,8 is off?
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
-	));
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[4, 8], 4, [4, 10], 4, [2, 10], 2, 2, [2, 8], 8,
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
-	));
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[0, 6, 11], [6, 11], 11, [-2, 11], [-2, 11], [-3, 11], [-3, 11]
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
-	));
-
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[-3, 11], [11, 16, 22], [11, 16]   // ???
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)), inf)
-	));
-
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			11, 11, 11, 11
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
-	));
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[11, 35], [11, 34.96], [11, 34.93], [11, 34.8], [11, 34], [11, 33.8], [11, 31.78]
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
-	));
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[11, 35, 29], 	 [11, 34.96, 29.1], [11, 34.91, 29.13], [11, 34.8, 29.5],
-			[11, 34, 29.53], [11, 33.8, 29.8],  [11, 33.78, 30.1],  [11, 33.5, 30.5]
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
-	));
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[15, 34, 28], [15, 34, 28], [16, 34, 27], [15, 34, 27], [15, 34, 27], [15, 34, 27],
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
-	));
-
-
-	Pdef(\note1, Pbind(
-		\bellFreq, Pseq([
-			[11, 35], [11, 34.96]
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
-	));
-
-
-	Pdef(\note2, Pbind(
-		\bellFreq, Pseq([
-			0, 0, -0, -0, -1, -6, -6, -6, -6, -6, -6,
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
-	));
-
-	Pdef(\mainPat, Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
-
-	Pdef(\note2, Pbind(
-		\bellFreq, Pseq([
-			0, 0, -0, -0, -1, -6, -6, -6, -6, -6, -6,
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
-	));
-
-	Pdef(\noteMain, Pbind(
-		\bellFreq, Pseq([
-			0, 0, 0, -1, -2, -2,
-			0, 0, 0, -2, -3, -3
-		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
-	));
-
-	Pdef(\pengGroup, (\group: ~pengGroup));
 
 	~patterns = [
-		Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng),
-		Pdef(\note2) <> Pdef(\pengGroup) <> Pdef(\peng),
-		Pdef(\noteMain) <> Pdef(\pengGroup) <> Pdef(\peng),
+		nil,
+
+		Pdef(\noteA, Pbind(
+			\bellFreq, Pseq([
+				4, 4, 4, 4, 4, 4, 2, 2,
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+		)),
+
+		Pdef(\noteB, Pbind(
+			\bellFreq, Pseq([
+				[4, 6.3], 4, 4, [4, 8], 4, 4, [2, 8], 2, 2,   // 2,8 is off?
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+		)),
+
+		Pdef(\noteC, Pbind(
+			\bellFreq, Pseq([
+				[4, 8], 4, [4, 10], 4, [2, 10], 2, 2, [2, 8], 8,
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+		)),
+
+		Pdef(\noteD, Pbind(
+			\bellFreq, Pseq([
+				[0, 6, 11], [6, 11], 11, [-2, 11], [-2, 11], [-3, 11], [-3, 11]  // bad at end?
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+		)),
+
+
+		Pdef(\noteE, Pbind(
+			\bellFreq, Pseq([
+				[-3, 11], [11, 16, 22], [11, 16]   // ???
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)), inf)
+		)),
+
+		Pdef(\noteF, Pbind(
+			\bellFreq, Pseq([
+				11, 11, 11, 11
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+		)),
+
+		Pdef(\noteG, Pbind(
+			\bellFreq, Pseq([
+				[11, 35], [11, 34.96], [11, 34.93], [11, 34.8], [11, 34], [11, 33.8], [11, 31.78]  // high too loud
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+		)),
+
+		Pdef(\noteH, Pbind(
+			\bellFreq, Pseq([
+				[11, 35, 29], 	 [11, 34.96, 29.1], [11, 34.91, 29.13], [11, 34.8, 29.5],
+				[11, 34, 29.53], [11, 33.8, 29.8],  [11, 33.78, 30.1],  [11, 33.5, 30.5]
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+		)),
+
+		Pdef(\noteI, Pbind(
+			\bellFreq, Pseq([
+				[15, 34, 28], [15, 34, 28], [16, 34, 27], [15, 34, 27], [15, 34, 27], [15, 34, 27],
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+		)),
+
+		Pdef(\noteJ, Pbind(
+			\bellFreq, Pseq([
+				[11, 35], [11, 34.96]
+			].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+		)),
 	];
+
+	Pdef(\pengGroup, (\group: ~pengGroup));
 
 	/////////////////////////////
 	// States
@@ -379,68 +373,73 @@ State(\peng).initActions.add({
 
 		// 1 ////////////////////////////
 		e({
-			SlewCV.all([
-				~driverFreq, 20,
-				~driverDecay, 0.977231016606,
-				~driverDouble, 0,
-				~driverNoiseAmt, 0.43307086614173
-			], 6);
+			Log(\peng, "peng stopped");
 			Pdef(\mainPat).stop();
 		}),
 
 		// 2 ////////////////////////////
 		e({
-			SlewCV.all([
-				~driverFreq, 191.80666756585,
-				~driverDecay, 0.23635283371651,
-				~driverDouble, 0,
-				~driverNoiseAmt, 0.5511811023622,
-			], 0.3);
-			Pdef(\mainPat).stop();
+			Pdef(\mainPat, Pdef(\noteA) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
 		}),
 
 		// 2 ////////////////////////////
 		e({
-			SlewCV.all([
-				~driverFreq, 647.95282391713,
-				~driverDecay, 0.076747461680536,
-				~driverDouble, 0.47244094488189,
-				~driverNoiseAmt, 0.15748031496063,
-			], 0.6);
-			Pdef(\mainPat).stop();
+			Pdef(\mainPat, Pdef(\noteB) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
+
+		// 3 ////////////////////////////
+		e({
+			Pdef(\mainPat, Pdef(\noteC) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
 		}),
 
 		// 4 ////////////////////////////
 		e({
-			SlewCV.all([
-				~driverFreq, 54.362897428085,
-				~driverDecay, 0.21234268741174,
-				~driverDouble, 0,
-				~driverNoiseAmt, 0.43307086614173,
-				~pengDecayAmt, 0.56771653543307,
-				~pengLPF, 18.465139693047,
-				~pengDelayAmt, 0,
-				~pengNoiseAmt, 0.57503937007874,
-				~pengNoiseLPF, 15.451703926941,
-			], 6);
-			Pdef(\mainPat, Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+			Pdef(\mainPat, Pdef(\noteD) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
+
+		// 5 ////////////////////////////
+		e({
+			Pdef(\mainPat, Pdef(\noteE) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
+
+		// 6 ////////////////////////////
+		e({
+			Pdef(\mainPat, Pdef(\noteF) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
+
+		// 7 ////////////////////////////
+		e({
+			Pdef(\mainPat, Pdef(\noteG) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
+
+		// 8 ////////////////////////////
+		e({
+			Pdef(\mainPat, Pdef(\noteH) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
+
+		// 9 ////////////////////////////
+		e({
+			Pdef(\mainPat, Pdef(\noteI) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
+		}),
+
+		// 10 ////////////////////////////
+		e({
+			Pdef(\mainPat, Pdef(\noteJ) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
 		}),
 	];
 
-	Pdef(\mainPat).clear();
 });
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// FREE
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FREE
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 State(\peng).freeActions.add({
 	~lc.free;
 });
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // START
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 State(\peng).startActions.add({
 
 	[
@@ -452,13 +451,12 @@ State(\peng).startActions.add({
 		\delayAmt, ~pengDelayAmt,
 	].connectToNode(Server.default, ~pengGroup.nodeID);
 
-	~patternButtons = ~lc.buttons[5..12];
+	~buttonsArray = ((((0..7) * [4]) +.t [0, 1, 2]).flop.flatten[0..11]);
+	~buttonsArray.remove(20);
+	~patternButtons = ~buttonsArray.collect({ |b| ~lc.knobs[b].button });
 
-	~patternButtons[0].default().toggle_(true);
-	~patternButtons[0].buttonOnActions.add({
-		Log(\peng, "no pattern.");
-		Pdef(\mainPat).stop;
-	});
+	~lc.knobs[30].cv = ~hissVol;
+	~lc.knobs[30].button.cv = ~hissTrig;
 
 	~states.do({
 		| state, i |
@@ -497,7 +495,9 @@ State(\peng).startActions.add({
 		\double: ~driverDouble,
 		\noiseAmt: ~driverNoiseAmt,
 		\delayLevel: ~driverDelayLevel,
-		\feedAmt: ~driverFeedAmt
+		\feedAmt: ~driverFeedAmt,
+		\hiss: ~hissTrig,
+		\hissVol: ~hissVol
 	]);
 
 	~cymbalEvent = (
@@ -521,6 +521,7 @@ State(\peng).stopActions.add({
 	~patternButtons.do(_.cv_(nil));
 	~knobs.do(_.cv_(nil));
 	~pengMappings.do(_.remove);
+	~patternButtons.do({ |b| b.buttonOnActions.clear });
 });
 
 
