@@ -75,6 +75,6 @@ State(\control).initActions.add({
 
 State(\control).freeActions.add({
 	~mixdown.free;
-})
+});
 
 State(\control).doInit();
