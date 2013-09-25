@@ -45,49 +45,21 @@ State(\gliz).initActions.put(0, {
 		arg in, out, t_dust = 0, bulk = 0, amp = 1;
 		var sig, inSig, inSigLow, inFeed, noise, noiseMod, dust, dustEnv;
 
-		dustEnv = EnvGen.kr(Env.perc(0.01, 12), gate: t_dust);
-		dust = Dust.ar(dustEnv * 10 + 118) * dustEnv;
-		dust = dust + CombC.ar(Decay.ar(Dust.ar(6), 0.001), 0.1, 1/7, 0.2);
-
-		noiseMod = LFNoise2.ar(50);
-		noiseMod = noiseMod + (
-			sin([1.2, 3, 8, 9] * noiseMod * pi)
-		).sum * 0.2;
-
-		inFeed = LocalIn.ar(4) * 0.01;
-		inFeed = APF.ar(inFeed, 25, 0.99);
-		inFeed = LPF.ar(inFeed, 5000);
-		inFeed = BRF.ar(inFeed, 3500);
-		inFeed = LeakDC.ar(inFeed);
-
-		inSig = In.ar(in, 2) * noiseMod.range(0.95, 1.0);
-		inSig = inSig + inFeed/* + (dust * 0.01)*/;
-		inSigLow = LPF.ar(inSig, 100);
-
-		sig = GVerb.ar(inSig, 20.1, 8);
-		sig = HPF.ar(sig, 6000);
-
-		noise = (WhiteNoise.ar(0.2) + (BrownNoise.ar() * BrownNoise.ar()) * 0.3) * noiseMod.range(0.75, 1.0);
-		noise = noise + dust;
-		noise = APF.ar(noise, 101.4, 0.8);
-
-		noise = HPF.ar(noise, 2000) * (1 + sig);
-		noise = noise + HPF.ar(WhiteNoise.ar(0.005), 10000);
 		noise = PlayBuf.ar(4, ~sf.bufnum, 1, startPos: 0, loop: 1)  * 5000;
 		noise = HPF.ar(noise, 12000);
 		sig = (noise);
 		sig = sig + (0.1 * HardCompress.ar(sig, 0.1, 0.05));
 		sig = XFade2.ar(sig, ~bulkSynth.value(sig), bulk * 2 - 1);
 		sig = sig * 0.1;
-		LocalOut.ar(sig);
 
-		sig = (sig + inSig + inSigLow) * amp * 0.01;
+		sig = (sig) * amp * 0.01;
+		sig.postln;
 		sig = [
 			sig[0], sig[1],
 			sig[0], sig[1],
-			sig[2], sig[2],
-			sig[2], sig[2]
-		];
+			sig[2], sig[3],
+			sig[2], sig[3]
+		].postln;
 
 		Out.ar(out, sig);
 	}).add;
@@ -122,6 +94,7 @@ State(\gliz).initActions.put(0, {
 	~lc = LCDevice();
 	~lc.knobs.do(_.ringStyle_(\fill));
 	~resources.add(~lc);
+	~lc.postln;
 
 	// Play button
 	~playButton = ~lc.buttons[4].default;
