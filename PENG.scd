@@ -90,7 +90,7 @@ State(\peng).initActions.add({
 		noiseLPFadjust = noiseLPF.linlin(10, 1000, 0.dbamp, -6.dbamp);
 
 		in = LeakDC.ar(in + LPF.ar(in.pow(2), noiseLPF, 5)).tanh;
-		Amplitude.ar(in).round(0.1).poll(10);
+		Amplitude.ar(in).round(0.1);
 		in = noiseLPFadjust * env * in;
 		in = Compander.ar(in, in, 0.6, 1, 1/6, 0.01);
 
@@ -104,9 +104,9 @@ State(\peng).initActions.add({
 		amps = [1, 0.67, 1.35, 1.8, 2.67, 1.67, 1.46, 1.33, 1.33, 1.0, 1.33, 0.3];
 		decays = [1, 0.9, 0.65, 0.55, 0.325, 0.35, 0.25, 0.2, 0.15, 0.1, 0.075, 0.2];
 
-		sig = DynKlank.ar(`[freqs, amps, decays], in + noise, decayscale: decayAmt, freqscale:1) * 0.001;
+		sig = DynKlank.ar(`[freqs, amps, decays], in.tanh + noise, decayscale: decayAmt, freqscale:1) * 0.001;
 		sig = Limiter.ar(sig, -12.dbamp);
-		sig = Compander.ar(sig * env, sig, 1, 1/2, 1/8) * 0.5;
+		sig = Compander.ar(sig * env, sig, 1, 1, 1/8) * 0.5;
 		sig = LeakDC.ar(sig);
 
 		sigForComb = sig * env;
@@ -131,7 +131,7 @@ State(\peng).initActions.add({
 
 		in = in + LPF.ar(in * in, 50, 1);
 		in = in * Line.kr(0, 1, 4);
-
+		in = in.tanh;
 		verbSig = FreeVerb.ar(sig * 0.5, 0.8, 0.4);
 		sig = (1 * sig)
 		+ (0.9 * verbSig)
@@ -259,7 +259,7 @@ State(\peng).initActions.add({
 		\input, ~bus.index,
 		\bellFreq, Pseq([0, 0, 4, 9, 0, [0, 8], 5, 7, 9, 9].collect(Scale.partch_o3.degreeToFreq(_ , 98, 0)), inf),
 		\dur, 4,
-		\legato, 2,
+		\legato, 1.5,
 		\amp, ~pengAmp,
 		\noiseLPF, ~pengNoiseLPF,
 		\lpf, ~pengLPF,
@@ -270,9 +270,77 @@ State(\peng).initActions.add({
 
 	Pdef(\note1, Pbind(
 		\bellFreq, Pseq([
-			-8, -8, -8, -8, -8, -6, -6,
+			4, 4, 4, 4, 4, 4, 2, 2,
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+	));
+
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[4, 6.3], 4, 4, [4, 8], 4, 4, [2, 8], 2, 2,
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+	));
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[4, 8], 4, [4, 10], 4, [2, 10], 2, 2, [2, 8], 8,
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+	));
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[0, 6, 11], [6, 11], 11, [-2, 11], [-2, 11], [-3, 11], [-3, 11]
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -1)), inf)
+	));
+
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[-3, 11], [11, 16, 22], [11, 16]
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)), inf)
+	));
+
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			11, 11, 11, 11
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+	));
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[11, 35], [11, 34.96], [11, 34.93], [11, 34.8], [11, 34], [11, 33.8], [11, 31.78]
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+	));
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[11, 35, 29], 	 [11, 34.96, 29.1], [11, 34.91, 29.13], [11, 34.8, 29.5],
+			[11, 34, 29.53], [11, 33.8, 29.8],  [11, 33.78, 30.1],  [11, 33.5, 30.5]
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+	));
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[15, 34, 28], [15, 34, 28], [16, 34, 27], [15, 34, 27], [15, 34, 27], [15, 34, 27],
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+	));
+
+
+	Pdef(\note1, Pbind(
+		\bellFreq, Pseq([
+			[11, 35], [11, 34.96]
+		].collect(Scale.partch_o2.degreeToFreq(_ , 98, -2)).post, inf)
+	));
+
+
+	Pdef(\note2, Pbind(
+		\bellFreq, Pseq([
+			0, 0, -0, -0, -1, -6, -6, -6, -6, -6, -6,
 		].collect(Scale.partch_o2.degreeToFreq(_ , 98, 0)), inf)
 	));
+
+	Pdef(\mainPat, Pdef(\note1) <> Pdef(\pengGroup) <> Pdef(\peng)).play;
 
 	Pdef(\note2, Pbind(
 		\bellFreq, Pseq([
