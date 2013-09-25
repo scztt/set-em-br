@@ -1,4 +1,5 @@
 // .value\W+= (.*);
+//	#c, d, a, b = PanAz.ar(4, sig, MouseX.kr(-1, 0.5).poll, orientation: 0);
 
 Log.logErrors();
 
@@ -61,13 +62,18 @@ State(\control).initActions.add({
 
 	~lc.connect;
 
-	~mixdown = {
-		var sig = In.ar(0, 8);
-		sig = 0.2 * [
+/*	~mixdown = {
+		var stereoSig, sig = In.ar(0, 8);
+		stereoSig = 0.2 * [
 			sig[0] + sig[2] + sig[4] + sig[6] ,
 			sig[1] + sig[3] + sig[5] + sig[7]
 		];
-		ReplaceOut.ar(0, sig ++ (DC.ar(0) ! 6));
+		ReplaceOut.ar(0, stereoSig ++ sig);
+	}.play(target: s, addAction: \addAfter);*/
+
+	~mixdown = {
+		var sig = In.ar(0, 10);
+		ReplaceOut.ar(0, (DC.ar(0) ! 2) ++ sig);
 	}.play(target: s, addAction: \addAfter);
 
 	// Log(\control, "READY");
@@ -77,4 +83,4 @@ State(\control).freeActions.add({
 	~mixdown.free;
 });
 
-State(\control).doInit();
+State(\control).doInit();b
