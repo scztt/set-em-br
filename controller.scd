@@ -3,7 +3,7 @@
 
 Log.logErrors();
 
-LogWindow(\perf, [\gliz, \peng, \mass, \control, \error]).gui();
+LogWindow(\perf, [\gliz, \peng, \mass, \adelay, \control, \error]).gui();
 LogWindow(\perf).clear;
 
 EnvirWindow.show();
@@ -12,6 +12,7 @@ Require("server-config", always: true);
 Require("GLIZ", always: true);
 Require("PENG", always: true);
 Require("MASS", always: true);
+Require("ADELAY", always: true);
 
 State(\control).clear();
 State(\control).initActions.add({
@@ -58,23 +59,34 @@ State(\control).initActions.add({
 		State(\gliz)[\lc].disconnect();
 	});
 
+	~lc.buttons[3].buttonOnActions.add({
+		Log(\adelay, "connected");
+		State(\adelay)[\lc].connect();
+		~currentState = State(\adelay);
+	});
+
+	~lc.buttons[3].buttonOffActions.add({
+		//Log(\adelay, "disconnected");
+		State(\adelay)[\lc].disconnect();
+	});
+
 	CVModalGroup(*~lc.buttons[0..3]);
 
 	~lc.connect;
 
-/*	~mixdown = {
+	~mixdown = {
 		var stereoSig, sig = In.ar(0, 8);
 		stereoSig = 0.2 * [
 			sig[0] + sig[2] + sig[4] + sig[6] ,
 			sig[1] + sig[3] + sig[5] + sig[7]
 		];
 		ReplaceOut.ar(0, stereoSig ++ sig);
-	}.play(target: s, addAction: \addAfter);*/
+	}.play(target: s, addAction: \addAfter);
 
-	~mixdown = {
+/*	~mixdown = {
 		var sig = In.ar(0, 10);
 		ReplaceOut.ar(0, (DC.ar(0) ! 2) ++ sig);
-	}.play(target: s, addAction: \addAfter);
+		}.play(target: s, addAction: \addAfter);*/
 
 	// Log(\control, "READY");
 });
