@@ -137,6 +137,7 @@ State(\peng).initActions.add({
 		+ (0.9 * verbSig)
 		+ (0.9 * HardCompress.ar((verbSig * 0.3) + (in * LPF.ar( PinkNoise.ar(0.25), lpf))));
 		sig = sig * 0.2;
+		sig = sig * IEnvGen.kr(Env([0.dbamp, -4.dbamp, -12.dbamp], [700, 2000]), bellFreq).min(1).max(0);
 
 		// delaySpike
 		delaySpike = LagUD.ar(Trig1.ar(LFNoise2.ar(6).range(0, 1) - delayAmt, 0.1), 0.01, 1.7);
