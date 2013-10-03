@@ -42,15 +42,15 @@ State(\gliz).initActions.put(0, {
 	};
 
 	SynthDef(\lichenSurface, {
-		arg in, out, t_dust = 0, bulk = 0, amp = 1;
-		var sig, inSig, inSigLow, inFeed, noise, noiseMod, dust, dustEnv;
+		arg in, out, t_dust = 0, bulk = 0, hard = 0, amp = 1, gate = 1;
+		var sig, inSig, inSigLow, inFeed, noise, noiseMod, dust, dustEnv, env;
 
 		noise = PlayBuf.ar(4, ~sf.bufnum, 1, startPos: 0, loop: 1)  * 5000;
-		noise = HPF.ar(noise, 12000);
 		sig = (noise);
-		sig = sig + (0.1 * HardCompress.ar(sig, 0.1, 0.05));
-		sig = XFade2.ar(sig, ~bulkSynth.value(sig), bulk * 2 - 1);
-		sig = sig * 0.1;
+		sig = XFade2.ar(sig, HardCompress2.ar(sig + BrownNoise.ar(0.1), 0.02, 0.1), hard * 2 - 1);
+		sig = XFade2.ar(sig, sig.collect({ |s| ~bulkSynth.value(s) }), bulk * 2 - 1);
+		sig = sig * 0.3;
+		sig = HPF.ar(sig, 7000);
 
 		sig = (sig) * amp * 0.01;
 		sig.postln;
@@ -61,7 +61,9 @@ State(\gliz).initActions.put(0, {
 			sig[2], sig[3]
 		].postln;
 
-		Out.ar(out, sig);
+		env = EnvGen.ar(Env([0, 1, 1, 0], [10, 1, 15], releaseNode: 2), gate: gate, doneAction: 2);
+
+		Out.ar(out, sig * env);
 	}).add;
 
 
@@ -108,12 +110,14 @@ State(\gliz).initActions.put(0, {
 	});
 
 	~controls = [
+		~humAmp = CV(ControlSpec(0, 2, \db, default: 1)),
+		~hitAmp = CV(ControlSpec(0.1, 2, \db, default: 1)),
+		~surfaceAmp = CV(ControlSpec(0, 0.5, \db, default: 0.01)),
 		~rotationSpeed = CV(ControlSpec(-0.5, 0.5, default: 0)),
 		~pitchBend = CV(ControlSpec(-10, 10, default: 0)),
 		~hitSpeed = CV(ControlSpec(0.5, 20, \exp, default: 1)),
-		~hitAmp = CV(ControlSpec(0, 1, \db, default: 1)),
-		~humAmp = CV(ControlSpec(0, 1, \db, default: 1)),
-		~surfaceAmp = CV(ControlSpec(0, 1, \db, default: 1)),
+		~bulk = CV(ControlSpec(0, 1, default: 0)),
+		~hard = CV(ControlSpec(0, 1, default: 0)),
 	];
 	~bellBus = Bus.audio(s, 2);
 
@@ -142,6 +146,7 @@ State(\gliz).startActions.add({
 		\out, 0,
 		\in, ~bellBus.index,
 		\bulk, ~bulk,
+		\hard, ~hard,
 		\amp, ~surfaceAmp
 	], addAction: \addAfter);
 
@@ -155,13 +160,8 @@ State(\gliz).startActions.add({
 State(\gliz).stopActions.add({
 	"Bell1 off".postln;
 
-	~controls.do({
-		|cv, i|
-		~lc.knobs[7 + (i * 4)].cv = nil;
-	});
-
 	~bellBus.free;
-	~surfaceSynth.free;
+	~surfaceSynth.release();
 });
 
 State(\gliz).doInit();
