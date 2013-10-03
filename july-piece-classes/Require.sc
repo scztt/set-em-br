@@ -42,7 +42,7 @@ Require {
 			paths = (this.resolveRelative(identifier)).pathMatch();
 		};
 
-		// Then relative with excluded extension
+		// Then relative with implicit extension
 		if (paths.isEmpty() && identifier.endsWith(".scd").not) {
 			identifier = identifier ++ ".scd";
 			paths = (this.resolveRelative(identifier)).pathMatch();
