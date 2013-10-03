@@ -154,7 +154,7 @@ State(\gliz).initActions.put(11, {
 
 		Pdef(\humQ, Pbind(
 			\hum, Pseq(   [ [  5,   0,   3,   1,   5 ] ], inf),
-			\degree, Pseq([ [-32, -25, -21, -16, -13 ] ], inf),
+			\degree, Pseq([ [-32, -25, -21, -16, -13 ] +.x [0, -12] ], inf),
 		)),
 
 		Pdef(\humR, Pbind(
