@@ -1,7 +1,7 @@
 Singleton {
 	classvar <>all, <>know=false, creatingNew=false;
 
-	var <>name, logString, <postWindow, <>postActions;
+	var <>name;
 
 	*initClass {
 		all = IdentityDictionary();
@@ -42,10 +42,8 @@ Singleton {
 				if (selector.isSetter) {
 					selector = selector.asString;
 					selector = selector[0..(selector.size - 2)].asSymbol;
-					item = this.new(selector, *args);
-				} {
-					item = this.new(selector);
-				}
+				};
+				item = this.new(selector, *args);
 			};
 			creatingNew = false;
 			^item;
@@ -58,6 +56,37 @@ Singleton {
 
 	set {
 		// Override this to receive 'settings' parameter from Singleton.new(name, settings)
+	}
+}
+
+MockSingleton : Singleton {
+	var <settings;
+	set {
+		arg ...inSettings;
+		settings = inSettings;
+	}
+}
+
+TestSingleton : UnitTest {
+
+	test_default {
+		var a, b;
+		a = Singleton();
+		b = Singleton(\default);
+		this.assertEquals(a, b);
+	}
+
+	test_settigs {
+		var settings = [\a, 1, "2",  [3, 3, 3]];
+		MockSingleton(\test, *settings);
+		this.assertEquals(settings, MockSingleton(\test).settings)
+	}
+
+	test_know {
+		MockSingleton.know = true;
+		MockSingleton.foo = \argument;
+		this.assertEquals(MockSingleton.foo.settings, [\argument]);
+		MockSingleton.know = false;
 	}
 
 }
