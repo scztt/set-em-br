@@ -1,6 +1,3 @@
-//MultiStateManager(\perf).switch(State(\peng));
-EnvirWindow.update(currentEnvironment);
-
 (
 State(\peng).clear;
 State(\peng).autoEnvirWindow = true;
