@@ -1,12 +1,22 @@
 Log : Singleton {
-	classvar defaultFormatter, onErrorAction;
-	var <>actions, <>formatter, <>shouldPost = true, <>maxLength = 500, <lines;
+	classvar defaultFormatter, levels, levelNames, onErrorAction;
+	var <>actions, <>formatter, <>shouldPost = true, <>maxLength = 500, <lines, level;
 
 	*initClass {
 		defaultFormatter = {
-			|item, log|
+			| item, log |
 			"[%]".format(log.name.asString().toUpper()).padRight(12) ++ item[\string];
-		}
+		};
+
+		levels = (
+			\debug: 0,
+			\info: 5,
+			\warning: 10,
+			\error: 15,
+			\critical: 20,
+		);
+
+		levelNames = levels.invert;
 	}
 
 	*logErrors {
@@ -41,6 +51,7 @@ Log : Singleton {
 		actions = IdentitySet();
 		lines = LinkedList(maxLength);
 		formatter = defaultFormatter;
+		this.level = \info;
 	}
 
 	addEntry {
@@ -52,35 +63,77 @@ Log : Singleton {
 	}
 
 	set {
-		| str, level = \default |
-		var logItem = (
-			\string: str,
-			\level: level,
-			\time: Date().rawSeconds
-		);
-		logItem[\formatted] = this.format(logItem);
+		| str, level |
+		^this.log(str, level);
+	}
 
-		this.addEntry(logItem);
+	log {
+		| str, itemLevel = \debug |
+		if ((levels[itemLevel] ? \debug) >= level) {
+			var logItem = (
+				\string: str,
+				\level: itemLevel,
+				\time: Date().rawSeconds
+			);
 
-		if (shouldPost) {
-			logItem[\formatted].postln;
-		};
+			logItem[\formatted] = this.format(logItem);
 
-		actions.do({
-			| action |
-			action.value(logItem, this);
-		});
+			this.addEntry(logItem);
+
+			if (shouldPost) {
+				logItem[\formatted].postln;
+			};
+
+			actions.do({
+				| action |
+				action.value(logItem, this);
+			});
+		}
+	}
+
+	error {
+		| str ...formatargs |
+		^this.log(str.format(formatargs), \error);
+	}
+
+	warn {
+		| str ...formatargs |
+		^this.log(str.format(formatargs), \warning);
+	}
+
+	info {
+		| str ...formatargs |
+		^this.log(str.format(formatargs), \info);
+	}
+
+	debug {
+		| str ...formatargs |
+		^this.log(str.format(formatargs), \debug);
+	}
+
+	critical {
+		| str ...formatargs |
+		^this.log(str.format(formatargs), \critical);
 	}
 
 	format {
 		| item |
 		^formatter.value(item, this);
 	}
+
+	level {
+		^levelNames[level];
+	}
+
+	level_{
+		arg levelSymbol;
+		level = levels[levelSymbol];
+	}
 }
 
 LogWindow : Singleton {
 	var <action, <window, <textView, <names, <logs, textViewSize = 0, connected = false,
-	font, boldFont, regularColor, errorColor;
+	font, boldFont, regularColor, errorColor, creatingWindow = false;
 
 	init {
 		logs = IdentitySet();
@@ -117,7 +170,7 @@ LogWindow : Singleton {
 
 	set {
 		| namesArray |
-		var newNames;
+		var newNames, test;
 
 		if (namesArray.isKindOf(Symbol) || namesArray.isKindOf(String)) {
 			namesArray = [ namesArray ];
@@ -181,14 +234,16 @@ LogWindow : Singleton {
 
 	gui {
 		if (window.notNil and: { window.isClosed }) { window = nil };
-		if (window.isNil) {
+		if (window.isNil && creatingWindow.not) {
+			creatingWindow = true;
 			{
-				window = View();
+				window = Window(name=name);
+
 				textView = TextView()
-				.autohidesScrollers_(true)
-				.editable_(false)
-				.background_(Color(0.85, 0.9, 0.85, 0.7))
-				.font_(font);
+					.autohidesScrollers_(true)
+					.editable_(false)
+					.background_(Color(0.85, 0.9, 0.85, 0.7))
+					.font_(font);
 
 				window.recallPosition(\LogWindow, name);
 				window.autoRememberPosition(\LogWindow, name);
@@ -196,7 +251,6 @@ LogWindow : Singleton {
 				window.layout_(VLayout(textView));
 
 				CmdPeriod.add(this);
-
 				this.connect();
 				window.onClose_({
 					this.disconnect();
@@ -205,6 +259,8 @@ LogWindow : Singleton {
 					CmdPeriod.remove(this);
 					textViewSize = 0;
 				});
+
+				creatingWindow = false;
 			}.defer();
 		};
 
