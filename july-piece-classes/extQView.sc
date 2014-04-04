@@ -40,7 +40,7 @@ WindowViewRecall {
 	}
 }
 
-+ QWindow {
++ Window {
 	autoRememberPosition {
 		| ...addr |
 		WindowViewRecall.autoRememberPosition(this, *addr);
@@ -64,7 +64,7 @@ WindowViewRecall {
 	}
 }
 
-+ QView {
++ View {
 	autoRememberPosition {
 		| ...addr |
 		WindowViewRecall.autoRememberPosition(this, *addr);
