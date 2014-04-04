@@ -1,11 +1,25 @@
-+UGen {
-	protectBadValues {
-		arg ugen;
-		var ugens, finalizedUgens, newUgens, removeUgens, finished = false, i = 0, ugenBlewUp, sendReply;
+TraceBadValues {
+	classvar <synthdefs;
+
+	*initClass {
+		synthdefs = IdentityDictionary();
+	}
+
+	*new {
+		| ...ugens |
+		this.traceUgens(ugens.flatten);
+		^DC.ar(0);
+	}
+
+	*traceUgens {
+		| inUgens |
+		var ugens, finalizedUgens, newUgens, removeUgens, finished = false, i = 0, ugenBlewUp, sendReply, uniqueid, channelName, controlValuesList, ugensAr, ugensKr;
+		uniqueid = inUgens.hash;
+
 		ugens = IdentitySet();
 		finalizedUgens = IdentitySet();
-		ugens.add(ugen);
-		"initial ugen: %".format(ugen).postln;
+		ugens.addAll(inUgens);
+		"initial ugens: %".format(ugens).postln;
 
 		while {finished.not && (i < 100)} {
 			finished = true;
@@ -40,53 +54,104 @@
 					finished = false;
 				};
 			});
-			"new ugens: %".format(newUgens).postln;
-			"removed ugens: %".format(removeUgens).postln;
+
 			ugens.removeAll(removeUgens);
 			ugens.addAll(newUgens);
 			i = i + 1;
-			"ugens list[%]: %".format(ugens.size, ugens).postln;
-		};
-		"\n\n\n".postln;
-		"finalized ugens [%]: %".format(finalizedUgens.size, finalizedUgens).postln;
-		finalizedUgens.do({
-			|u|
-			"%.%: %, %".format(u.class, u.rate, u.synthIndex, u.specialIndex);
-		});
-		finalizedUgens = finalizedUgens.asArray.sort({ |a, b| a.synthIndex >= b.synthIndex });
-		ugenBlewUp = CheckBadValues.ar(ugen);
-		sendReply = PulseCount.ar(ugenBlewUp) > 0;
 
-		SendReply.ar(sendReply, '/synthstate', [-1] ++ UGen.buildSynthDef.controls);
+		};
+
+		finalizedUgens = finalizedUgens.asArray.sort({ |a, b| a.synthIndex < b.synthIndex });
+		"finalized ugens [%]: %".format(finalizedUgens.size, finalizedUgens).postln;
+		ugensAr = inUgens.asArray.select({ |u| u.postln.rate == \audio });
+		ugensKr = inUgens.asArray.select({ |u| u.postln.rate == \control });
+
+		sendReply = 0;
+		if (ugensAr.size > 0) {
+			ugenBlewUp = CheckBadValues.ar(ugensAr);
+			sendReply = PulseCount.ar(ugenBlewUp) > 0;
+		};
+
+		if (ugensKr.size > 0) {
+			ugenBlewUp = CheckBadValues.kr(ugensKr);
+			sendReply = sendReply + K2A.ar(PulseCount.kr(ugenBlewUp) > 0);
+		};
+
+		channelName = ("/synthstate_" ++ uniqueid).asSymbol;
+		TraceBadValues.synthdefs[channelName] = UGen.buildSynthDef;
+
+		controlValuesList = SparseArray();
+		UGen.buildSynthDef.children.do({
+			| child |
+			if ([Control, AudioControl, TrigControl, LagControl].includes(child.class)) {
+				child.channels.do({
+					| chan, i |
+					controlValuesList[child.specialIndex + i] = chan;
+				})
+			}
+		});
+
+		SendReply.ar(sendReply, channelName, [-1] ++ controlValuesList);
+
 		finalizedUgens.do({
 			|u|
-			SendReply.ar(sendReply, '/synthstate', [u.class.classIndex, u.synthIndex, u] ++ u.inputs);
+			SendReply.ar(sendReply, channelName, [u.class.classIndex, u.synthIndex, (u.rate == \audio).if(1, 0), u] ++ u.inputs);
 		});
 
 		OSCdef(\ugenstate, {
 			|msg|
-			var node, ugen, ugenIndex, value, inputs, isInvalid;
+			var name, node, ugen, ugenIndex, value, inputs, isInvalid, synthdef, argnames, argstring, rate, controlValues, controlNames;
 			isInvalid = {
 				|value|
 				((value == inf) || (value == -inf) || value.isNaN);
 			};
+
+			name = msg[0];
 			node = msg[1];
 			ugen = msg[3];
+
+			synthdef = TraceBadValues.synthdefs[name.asSymbol];
+
 			if (ugen == -1) {
-				"Controls for node %: (%)".format(node, msg[3..]).postln;
+				controlNames = synthdef.allControlNames;
+				controlValues = msg[4..];
+				controlValues = controlValues.reshapeLike(controlNames.collect(_.defaultValue));
+				"Controls for node %: (%)".format(
+					node,
+					controlValues.collect({
+						|v, i|
+						"%: %".format(controlNames[i].name, v);
+					}).join(", ")
+				).postln;
+
 			} {
-				ugen = Class.allClasses.detect({ |c| c.classIndex == ugen }).name;
+				ugen = Class.allClasses.detect({ |c| c.classIndex == ugen });
+				argnames = ugen.class.findMethod('ar').argNames;
+				if (argnames.isNil) { argnames = ugen.class.findMethod('kr').argNames };
+				if (argnames.isNil) { argnames = ugen.class.findMethod('ir').argNames };
+				if (argnames.isNil) { argnames = [] };
+				argnames = argnames[1..];
+
 				ugenIndex = msg[4];
-				value = msg[5];
-				inputs = msg[6..];
+				rate = (msg[5] == 1).if('ar', 'kr');
+				value = msg[6];
+				inputs = msg[7..];
 
 				if (isInvalid.(value)) {
 					if (inputs.detect({ |v| isInvalid.(v) }).isNil) {
 						"******".post;
 					};
-					"Ugen State for node %: %[%] = % (%)".format(node, ugen, ugenIndex, value, inputs.join(",")).postln;
+
+					argstring = inputs.collect({
+						| val, i |
+						"%: %".format(argnames[i], val);
+					}).join(", ");
+
+					"Ugen State for node %, ugen %: %.%(%) == %".format(node, ugenIndex, ugen.name, rate, argstring, value).postln;
 				}
 			}
-		}, '/synthstate');
+		}, channelName);
 	}
 }
+
+
