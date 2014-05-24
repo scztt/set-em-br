@@ -29,7 +29,7 @@ soundfile.openRead( path );
 ~audio = audio = Signal.newClear( soundfile.numFrames.postln );
 soundfile.readData( audio );
 soundfile.close();
-~buffer.play;
+//~buffer.play;
 
 ~zeroCrossings = List.new;
 
@@ -221,7 +221,6 @@ buffer.plot;
 	//LeakDC.ar( sigA ) * [1,1]
 }.play;
 )
-
 
 (
 ~synth = {
