@@ -76,14 +76,22 @@ SynthDef(\BFormatReverb, {
 		|sig|
 		var base, amp, adjust, phase;
 		base = \base.kr(200);
-		amp = Amplitude.kr(BPF.ar(sig, base, 13 / base)) - 0.0008;
+		amp = Amplitude.kr(BPF.ar(sig, base, 13 / base)) - 0.0005;
 		amp = max(amp, 0);
-		amp = Latch.kr(amp, Dust.ar(5));
-		adjust = 1.5 - (amp * 5000);
-		phase = { 1.0.rand + Latch.kr(LFNoise2.kr(1), Dust.kr(8)) } ! 3;
-		MidEQ.ar(sig,
-			\notes.kr([1, 4/3, 5/3, 7/3])
-			* base + SinOsc.ar(0.1 + phase, phase, 5),  13 / base, adjust).sum / 4;
+		amp = Latch.ar(amp, Dust.ar(5));
+		adjust = (2.3 - (amp * 1000)).lagud(3, 0.001);
+		//adjust.poll;
+		phase = { 1.0.rand + Latch.kr(LFNoise2.kr(1), Dust.kr(5)) };
+		\notes.kr([1, 4/3, 5/3, 7/3]).do({
+			|f|
+			sig = MidEQ.ar(
+				sig,
+				((f * base) + SinOsc.ar(0.1, 0.1 + phase, 5)),
+				13 / base,
+				adjust
+			);
+		});
+		sig;
 	});
 
 	for(0, 3, {arg j;
