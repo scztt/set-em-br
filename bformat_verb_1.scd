@@ -151,9 +151,15 @@ n = {
 	var sig, trig, env, envDecay, envDelay, dur, freqA, freqB;
 	sig = Impulse.ar(LFNoise2.kr(0.8, 3, 3).round().poll * 0.7) * 0.8;
 	dur = TRand.ar(0.2, 1.25, sig).pow(TRand.ar(1, 3, sig)).poll(sig);
-	freqA = (TRand.ar(0, 4, sig) + 75).round();
-	freqB = (freqA + (TRand.ar(-3, 0, sig).round() * 4));
+
+	// freqA = (TRand.ar(0, 4, sig) + 75).round();
+	// freqB = (freqA + (TRand.ar(-3, 0, sig).round() * 4));
+
+	freqA = (TRand.ar(0, 1, sig) + 95).round();
+	freqB = (freqA + (TRand.ar(-4, 0, sig).round() * 3));
+
 	freqA = freqA.midicps; freqB = freqB.midicps;
+
 	trig = Trig1.ar(sig);
 	env = EnvGen.ar(Env.perc(1), gate: trig, timeScale:dur);
 	envDecay = EnvGen.ar(Env([1, 0.4, 1, 0.001], [0.2, 0.7, 0.1]), gate: trig, timeScale:dur);
