@@ -147,7 +147,7 @@ SynthDef(\BFormatReverb, {
 
 (
 n = {
-	arg hardMix = 0;
+	arg hardMix = 0, octWidth=5, lowpass=400;
 	var sig, trig, env, envDecay, envDelay, dur, freqA, freqB;
 	sig = Impulse.ar(LFNoise2.kr(0.8, 3, 3).round().poll * 0.7) * 0.8;
 	dur = TRand.ar(0.2, 1.25, sig).pow(TRand.ar(1, 3, sig)).poll(sig);
@@ -164,8 +164,8 @@ n = {
 		[	freqA, 	freqA, 	freqA, 	freqB, 	freqB, 	TRand.kr(6, 22, sig)],
 		[	0.0001, 	0.5, 	0.01, 	0.5, 	0.01 	]
 	), gate: trig, timeScale:dur);
-	envDelay = envDelay * (2.pow(LFDNoise3.ar(LFDNoise3.ar(1, 2, 2), 5).round()));
-	sig = LPF.ar(sig, 400);
+	envDelay = envDelay * (2.pow(LFDNoise3.ar(LFDNoise3.ar(1, 2, 2), octWidth).round()));
+	sig = LPF.ar(sig, lowpass);
 	sig = XFade2.ar(
 		sig,
 		CombC.ar(sig, 0.5, envDelay.reciprocal, envDecay * -5.4),
