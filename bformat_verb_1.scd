@@ -76,11 +76,10 @@ SynthDef(\BFormatReverb, {
 		|sig|
 		var base, amp, adjust, phase;
 		base = \base.kr(200);
-		amp = Amplitude.kr(BPF.ar(sig, base, 13 / base)) - 0.0005;
+		amp = Amplitude.kr(BPF.ar(sig, base, 13 / base)) - 0.0001;
 		amp = max(amp, 0);
 		amp = Latch.ar(amp, Dust.ar(5));
-		adjust = (2.3 - (amp * 1000)).lagud(3, 0.001);
-		//adjust.poll;
+		adjust = (2.3 - (amp * 1000)).lagud(4, 0.001).max(-90);
 		phase = { 1.0.rand + Latch.kr(LFNoise2.kr(1), Dust.kr(5)) };
 		\notes.kr([1, 4/3, 5/3, 7/3]).do({
 			|f|
@@ -116,6 +115,7 @@ SynthDef(\BFormatReverb, {
 			});
 	globenv = EnvGen.kr(
 					Env([0, 1, 0], [3, 4], \sin, 1), gate, doneAction: 2);
+	TraceBadValues(outVec);
 	Out.ar(out_bus, (In.ar(in_bus, 4)*(1.0-mix)) + (outVec*mix) * globenv);
 	local = LeakDC.ar(local);
 	forBy(0, 14, 2, {arg i;
@@ -147,51 +147,58 @@ SynthDef(\BFormatReverb, {
 
 (
 n = {
-	arg hardMix = 0, octWidth=5, lowpass=400;
-	var sig, trig, env, envDecay, envDelay, dur, freqA, freqB;
-	sig = Impulse.ar(LFNoise2.kr(0.8, 3, 3).round().poll * 0.7) * 0.8;
-	dur = TRand.ar(0.2, 1.25, sig).pow(TRand.ar(1, 3, sig)).poll(sig);
+	arg hardMix = 0, impDur=3.1, impDurChaos=3,
+	octLow = -3, octHigh = 3, octSpeed=3, octChaos=1, lowpass=400;
 
-	// freqA = (TRand.ar(0, 4, sig) + 75).round();
-	// freqB = (freqA + (TRand.ar(-3, 0, sig).round() * 4));
+	var sig, trig, env, envDecay, envDelay, dur, freqA, freqB, durN;
 
-	freqA = (TRand.ar(0, 1, sig) + 95).round();
-	freqB = (freqA + (TRand.ar(-4, 0, sig).round() * 3));
+	impDur = LFNoise2.kr(0.8, impDurChaos, impDur).round() * 0.7;
+	sig = Impulse.ar(impDur) * 0.8;
+
+	dur = TRand.ar(
+		0.8,
+		1.25,
+		sig
+	).pow(TRand.ar(1, 3, sig));
+	durN = TRand.ar(0.2, 0.8, sig).pow(TRand.ar(1, 3, sig));
+
+	freqA = (TRand.ar(0, 3, sig)* 4 + 45).round();
+	freqB = (freqA + (TRand.ar(-4, 0, sig).round() *5));
+
+	// freqA = (TRand.ar(0, 1, sig) + 95).round();
+	// freqB = (freqA + (TRand.ar(-4, 0, sig).round() * 3));
 
 	freqA = freqA.midicps; freqB = freqB.midicps;
-
-	trig = Trig1.ar(sig);
+	trig = Trig1.ar(sig, 0.25);
 	env = EnvGen.ar(Env.perc(1), gate: trig, timeScale:dur);
 	envDecay = EnvGen.ar(Env([1, 0.4, 1, 0.001], [0.2, 0.7, 0.1]), gate: trig, timeScale:dur);
-	// envDelay = EnvGen.ar(Env(
-	// 	[	8, 		freqA, 	freqA, 	12, 	freqB, 	freqB, 	30, 	8],
-	// [	0.05, 	0.2, 	0.05, 	0.05, 	0.3, 	0.05, 	0.1]), gate: sig, timeScale:dur).poll;
 	envDelay = EnvGen.ar(Env(
-		[	freqA, 	freqA, 	freqA, 	freqB, 	freqB, 	TRand.kr(6, 22, sig)],
-		[	0.0001, 	0.5, 	0.01, 	0.5, 	0.01 	]
+		[	freqA, 	freqA, 	freqA, 	freqB, 	freqB, 	TRand.kr(5, 22, sig)],
+		[	0.0001, durN, 	0.01, 	1-durN, 0.01 	]
 	), gate: trig, timeScale:dur);
-	envDelay = envDelay * (2.pow(LFDNoise3.ar(LFDNoise3.ar(1, 2, 2), octWidth).round()));
+	envDelay = envDelay * (2.pow(LFDNoise3.ar(LFDNoise3.ar(1, octChaos, octSpeed)).range(octLow, octHigh).round().poll));
 	sig = LPF.ar(sig, lowpass);
 	sig = XFade2.ar(
 		sig,
-		CombC.ar(sig, 0.5, envDelay.reciprocal, envDecay * -5.4),
+		CombC.ar(sig, 0.5, envDelay.reciprocal, envDecay * -10),
 		hardMix * 2 - 1
 	);
 	sig = DynKlank.ar(
 		`[[1, 2, 3, 4, 5], [1, 1, 1, 1, 1], [1, 0.5, 0.4, 0.2, 0.1]],
 		sig,
 		freqscale:envDelay,
-		decayscale:envDecay
+		decayscale:envDecay * 10
 	);
+	sig = sig + PitchShift.ar(sig, pitchRatio:2, mul: 0.25 * LFPulse.kr(1, 0, 0.5));
 	sig = LeakDC.ar(sig);
-	sig = LPF.ar(sig, 20 + (env * 700));
-	sig = Splay.ar(sig) * 10;
+	sig = Compander.ar(sig, sig, 0.7, 1, 1/2);
 	sig = Mirror.ar(sig, -1, 1);
+	sig = MoogFF.ar(sig, 5 + (env * 3000), 3.0);
 	Out.ar(10,
-		BiPanB2.ar(sig[0], sig[1], LFSaw.kr(0.1, 0, 2, -1))
+		PanB.ar(sig, LFSaw.kr(0.1, 0, 2, -1))
 	);
 }.play;
-n = Synth(\BFormatReverb, args: [
+r = Synth(\BFormatReverb, args: [
 	\in_bus, 10,
 	\mix, 0.65,
 	\predelay, 0.15,
@@ -206,26 +213,33 @@ n = Synth(\BFormatReverb, args: [
 
 
 {
-	B2UHJ.ar(*InFeedback.ar(5, 3));
+	B2UHJ.ar(*InFeedback.ar(5, 3))
 }.play;
 
 {
 	inf.do({
-		n.set(\base, [100, 200, 300, 400, 500, 600].choose.postln);
+		r.set(\base, [100, 200, 300, 400, 500, 600].choose.postln);
 		45.wait;
 	})
 }.fork;
 
 {
 	inf.do({
-		n.set(\notes, [
+		r.set(\notes, [
 			[1, 5/3, 7/3, 9/3 ],
 			[1, 9/4, 7/4, 18/4 ]
 		].choose.postln);
 		35.wait;
 	})
 }.fork;
+
+n.set(\lowpass, 20);
+n.set(\hardMix, 1);
+n.set(\octLow, -2);
+n.set(\octHigh, 0);
+n.set(\octSpeed, 5);
+n.set(\octChaos, 0);
+n.set(\impDur, 1);
+
 );
 
-
-n.set(\hardMix, 0);
