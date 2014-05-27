@@ -86,7 +86,7 @@ SynthDef(\BFormatReverb, {
 			sig = MidEQ.ar(
 				sig,
 				((f * base) + SinOsc.ar(0.1, 0.1 + phase, 5)),
-				13 / base,
+				(13 - adjust) / base,
 				adjust
 			);
 		});
@@ -147,8 +147,8 @@ SynthDef(\BFormatReverb, {
 
 (
 n = {
-	arg hardMix = 0, impDur=3.1, impDurChaos=3,
-	octLow = -3, octHigh = 3, octSpeed=3, octChaos=1, lowpass=400;
+	arg hardMix = 0.4, impDur=3.1, impDurChaos=3, klankDecay=1, envFix=0,
+	octLow = -3, octHigh = 3, combOct=0, octSpeed=3, octChaos=1, lowpass=400;
 
 	var sig, trig, env, envDecay, envDelay, dur, freqA, freqB, durN;
 
@@ -159,19 +159,19 @@ n = {
 		0.8,
 		1.25,
 		sig
-	).pow(TRand.ar(1, 3, sig));
+	);
 	durN = TRand.ar(0.2, 0.8, sig).pow(TRand.ar(1, 3, sig));
 
-	freqA = (TRand.ar(0, 3, sig)* 4 + 45).round();
-	freqB = (freqA + (TRand.ar(-4, 0, sig).round() *5));
+	freqA = (TRand.ar(0, 2, sig) * 4 + 65).round();
+	freqB = (freqA + (TRand.ar(-1, 0, sig).round() * 5));
 
 	// freqA = (TRand.ar(0, 1, sig) + 95).round();
 	// freqB = (freqA + (TRand.ar(-4, 0, sig).round() * 3));
 
 	freqA = freqA.midicps; freqB = freqB.midicps;
-	trig = Trig1.ar(sig, 0.25);
+	trig = Trig1.ar(sig, 0.1);
 	env = EnvGen.ar(Env.perc(1), gate: trig, timeScale:dur);
-	envDecay = EnvGen.ar(Env([1, 0.4, 1, 0.001], [0.2, 0.7, 0.1]), gate: trig, timeScale:dur);
+	envDecay = EnvGen.ar(Env([1, 0.4, 1, envFix * 0.0001], [0.2, 0.7, 0.1]), gate: trig, timeScale:dur);
 	envDelay = EnvGen.ar(Env(
 		[	freqA, 	freqA, 	freqA, 	freqB, 	freqB, 	TRand.kr(5, 22, sig)],
 		[	0.0001, durN, 	0.01, 	1-durN, 0.01 	]
@@ -180,14 +180,14 @@ n = {
 	sig = LPF.ar(sig, lowpass);
 	sig = XFade2.ar(
 		sig,
-		CombC.ar(sig, 0.5, envDelay.reciprocal, envDecay * -10),
+		CombC.ar(sig, 0.5, (envDelay * 2.pow(combOct)).reciprocal, envDecay * -10),
 		hardMix * 2 - 1
 	);
 	sig = DynKlank.ar(
 		`[[1, 2, 3, 4, 5], [1, 1, 1, 1, 1], [1, 0.5, 0.4, 0.2, 0.1]],
 		sig,
 		freqscale:envDelay,
-		decayscale:envDecay * 10
+		decayscale:envDecay * klankDecay
 	);
 	sig = sig + PitchShift.ar(sig, pitchRatio:2, mul: 0.25 * LFPulse.kr(1, 0, 0.5));
 	sig = LeakDC.ar(sig);
@@ -233,13 +233,17 @@ r = Synth(\BFormatReverb, args: [
 	})
 }.fork;
 
-n.set(\lowpass, 20);
+n.set(\lowpass, 1565);
 n.set(\hardMix, 1);
-n.set(\octLow, -2);
-n.set(\octHigh, 0);
-n.set(\octSpeed, 5);
-n.set(\octChaos, 0);
-n.set(\impDur, 1);
+n.set(\combOct, -3);
+n.set(\octLow, 5);
+n.set(\octHigh, 5);
+n.set(\klankDecay, 3.9);
+
+n.set(\octSpeed, 6);
+n.set(\octChaos, 6);
+n.set(\impDur, 16);
+n.set(\impDurChaos, 2);
 
 );
 
