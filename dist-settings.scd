@@ -91,7 +91,7 @@ sig = Splay.ar(sig);
 LocalOut.ar(sig);
 sig;
 
-
+~synth.objects[0].synthDef.draw
 
 // other tear
 ~b[0] = [-1, -0.9, -0.1, -0.5, 0, 0.1, 0.0, 1];

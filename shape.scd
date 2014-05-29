@@ -5,24 +5,38 @@
 ~sourceBuf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/HumD1_48.wav", bufnum: 0);
 ~sourceBuf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/HumH_52.wav", bufnum: 0);
 ~sourceBuf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/HumA1_44.wav", bufnum: 0);
-~sourceBuf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/barrell-roll_4.wav", bufnum: 0);
+~sourceBuf = Buffer.read(s, "/Users/fsc/Desktop/SET EM BR/sounds/barrell-roll_4.wav", bufnum:0);
 ~sourceBuf.plot;
 
-~sourceSynth = NodeProxy.audio(s, 1);
+~sourceSynth = NodeProxy.audio(s, 2);
 ~sourceSynth.source = {
 	// PlayBuf.ar(4, ~sourceBuf.bufnum, rate:0.601)
-	Mix(PlayBuf.ar(4, ~sourceBuf.bufnum, rate:[0.1, 0.202], loop:1))
+	Mix(Mix(PlayBuf.ar(3, ~sourceBuf.bufnum, rate:[0.24, 0.12], loop:1))) * [1,1]
 //	+ (PlayBuf.ar(4, ~sourceBuf.bufnum, rate:[0.7, 0.5], loop:1).sum * 4)
 };
 ~sourceSynth.stop;
 
-~b = [] ! 20;
+~synth.objects[0].synthDef.draw;
+// unit 0 PlayBuf
+// in  16 0.24 1 0 1 0
+// out -0.00234738 -0.000577152 0.00365099
+// unit 1 PlayBuf
+// in  16 0.12 1 0 1 0
+// out 0.000624055 -0.0036925 0.000154926
+// unit 0 PlayBuf
+// in  16 0.24 1 0 1 0
+// out 0.00136276 0.000932415 -0.00699925
+// unit 1 PlayBuf
+// in  16 0.12 1 0 1 0
+// out -0.00189589 0.000905477 -0.000864238
+
 
 ~buffers = Array.fill(20, {
 	| i |
 	Buffer.alloc(s, 1024, bufnum: i + 1);
 });
 
+Node.basicNew(s, ~sourceSynth.objects[0].nodeID).trace;
 
 ~bufferUpdate = {
 	try {
@@ -141,6 +155,3 @@
 ~bufferview.action_(~bufferUpdate);
 ~w.front;
 
-
-Archive.write();
-Amplitude

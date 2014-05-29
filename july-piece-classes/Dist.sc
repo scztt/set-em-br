@@ -12,6 +12,8 @@ DistCurve : Singleton {
 	set {
 		arg ...inDescriptions;
 		descriptions = inDescriptions;
+		log.debug("Setting: %", descriptions);
+		log.debug("Current buffers: %", buffers);
 		this.updateBuffers();
 	}
 
@@ -57,9 +59,9 @@ DistCurve : Singleton {
 		var sizeDiff = buffers.size() - num;
 
 		if (sizeDiff > 0) {
-			log.debug("Removing % unused buffers.", sizeDiff);
+			log.debug("Removing % unused buffers ([%..]).", sizeDiff, num);
 			buffers[num..].do(_.free);
-			buffers = buffers[num..];
+			buffers = buffers[0..(num - 1)];
 		};
 
 		if (sizeDiff < 0) {
@@ -80,6 +82,7 @@ DistCurve : Singleton {
 				| desc, i |
 				if (buffers[i].notNil) {
 					buffers[i].sendCollection(this.toWavetable(desc));
+					log.debug("Refilled buffer % with %", buffers[i]);
 				} {
 					buffers[i] = Buffer.sendCollection(server, this.toWavetable(desc));
 					log.debug("Created new buffer %", buffers[i]);
@@ -107,7 +110,8 @@ DistCurve : Singleton {
 	}
 
 	ar {
-		arg in, position=0, pre, post;
+		arg in, position, pre, post;
+		position = position ?? { DC.kr(0) };
 
 		if (synced.not) { "Buffers have not yet been synced to the server! You can't call ar yet.".throw };
 
@@ -125,7 +129,7 @@ DistCurve : Singleton {
 			this.buildShaper(buffers[i], in, pre, post);
 		});
 
-		^LinSelectX.ar(position * (sigs.size - 1), sigs);
+		^LinSelectX.ar(position * (sigs.size - 1), sigs, wrap:0);
 	}
 
 	buildShaper {
@@ -181,5 +185,10 @@ DistCurve : Singleton {
 	toWavetableCollection {
 		arg desc, size;
 		^desc.resamp1(size);
+	}
+
+	onClear {
+		this.clearBuffers();
+		descriptions = [];
 	}
 }
